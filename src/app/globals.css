@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-mist text-ink antialiased;
+  font-feature-settings: "cv11", "ss01";
+}
+
+/* Visible, consistent keyboard focus everywhere. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid theme("colors.teal.bright");
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-line bg-white shadow-sm;
+  }
+  .pill {
+    @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn border-teal bg-teal text-white hover:bg-teal-bright;
+  }
+  .btn-secondary {
+    @apply btn border-line bg-white text-ink hover:bg-mist;
+  }
+  .btn-danger {
+    @apply btn border-amber bg-white text-amber hover:bg-amber-soft;
+  }
+  .label {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-muted;
+  }
+}
