@@ -66,7 +66,7 @@ Every item in the queue answers six questions:
 | **Owner** | the team/organisation that should fix it |
 | **Status** | open · in progress · escalated · closed |
 
-### The eight failure patterns it detects
+### The twelve failure patterns it detects
 
 | Pattern | Example in the seed |
 |---|---|
@@ -78,9 +78,13 @@ Every item in the queue answers six questions:
 | Loop not closed | Samuel Adeyemi — visit booked, never completed |
 | DNA, no rebooking | Margaret Cole — missed appointment, no follow-up |
 | Handover gap | Tomasz Woźniak — acute admission, no handover from the CMHT |
+| Cancellation, no rebooking | Clive Adepoju — clinic cancelled by the trust, never rebooked |
+| Care package delay | Beatrice Sowande — home-care package requested, not started, in a bed |
+| Onward referral not made | Harold Mensah — summary asked the GP to refer, 12 days, nothing |
+| Virtual ward step-down stalled | Doreen Achebe — step-down ready, no discharge, place blocked |
 
-Four other patients (Brian, Yvonne, Nasrin, Leonard) have **healthy pathways**
-and correctly produce no exceptions.
+Six other patients (Brian, Yvonne, Nasrin, Leonard, Kwame, Ruth) have
+**healthy pathways** and correctly produce no exceptions.
 
 ### The closed loop
 
@@ -106,7 +110,7 @@ src/
   engine/
     dataIntelligence   entity resolution + pathway-state model
     documentAgent      task/timeframe extraction from referral & summary text
-    coordinationAgent  the 8 failure detectors  (deterministic)
+    coordinationAgent  the 12 failure detectors  (deterministic)
     prioritisation     itemised, explainable scoring  (no hidden model)
     governance         policy checks before a human sees the recommendation
     explain            deterministic "why" + action; optional model rephrase

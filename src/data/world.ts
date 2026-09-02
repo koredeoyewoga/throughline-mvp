@@ -60,6 +60,7 @@ export const TEAMS: Team[] = [
   { id: "team-mch-dn", orgId: "org-mch", name: "District Nursing", functionArea: "district_nursing" },
   { id: "team-mch-nt4", orgId: "org-mch", name: "Neighbourhood Team 4 (Riverside)", functionArea: "neighbourhood_team" },
   { id: "team-mch-spa", orgId: "org-mch", name: "Community Single Point of Access", functionArea: "single_point_of_access" },
+  { id: "team-mch-vw", orgId: "org-mch", name: "Meadowford Virtual Ward", functionArea: "virtual_ward" },
   { id: "team-council-sw", orgId: "org-council", name: "Hospital Social Work Team", functionArea: "social_work" },
   { id: "team-rpcn-riverside", orgId: "org-rpcn", name: "Riverside Surgery", functionArea: "gp_practice" },
   { id: "team-lakeside-cmht", orgId: "org-lakeside", name: "Meadowford CMHT", functionArea: "mental_health" },

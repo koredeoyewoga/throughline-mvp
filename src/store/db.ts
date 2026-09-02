@@ -136,6 +136,26 @@ const RESOLVING_EVENT: Partial<
     pathway: "",
     summary: "Handover sent to the admitting ward (recorded via Throughline after coordinator action)",
   },
+  cancellation_no_rebook: {
+    type: "appointment_scheduled",
+    pathway: "outpatient",
+    summary: "Appointment rebooked with the patient (recorded via Throughline after coordinator action)",
+  },
+  package_of_care_delay: {
+    type: "care_package_started",
+    pathway: "discharge:social_care",
+    summary: "Home-care package started with first call completed (recorded via Throughline after coordinator action)",
+  },
+  onward_referral_not_made: {
+    type: "referral_made",
+    pathway: "",
+    summary: "Onward referral made to the named service (recorded via Throughline after coordinator action)",
+  },
+  virtual_ward_step_down_stalled: {
+    type: "virtual_ward_discharge",
+    pathway: "virtual_ward",
+    summary: "Virtual-ward discharge completed with GP handback (recorded via Throughline after coordinator action)",
+  },
 };
 
 export async function recordDecision(

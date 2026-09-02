@@ -41,7 +41,8 @@ export interface Team {
     | "social_work"
     | "gp_practice"
     | "mental_health"
-    | "voluntary";
+    | "voluntary"
+    | "virtual_ward";
 }
 
 export interface Patient {
@@ -76,7 +77,13 @@ export type EventType =
   | "visit_completed"
   | "contact_attempt"
   | "appointment_scheduled"
-  | "appointment_dna" // did not attend
+  | "appointment_dna" // patient did not attend
+  | "appointment_cancelled" // cancelled by the provider
+  | "care_package_requested" // home-care package requested from social care
+  | "care_package_started"
+  | "virtual_ward_admission"
+  | "virtual_ward_step_down_ready" // clinically ready to leave the virtual ward
+  | "virtual_ward_discharge"
   | "admission"
   | "readmission"
   | "status_note";
@@ -140,7 +147,11 @@ export type FailurePattern =
   | "duplicate_assessment"
   | "loop_not_closed"
   | "dna_no_rebook"
-  | "handover_gap";
+  | "handover_gap"
+  | "cancellation_no_rebook"
+  | "package_of_care_delay"
+  | "onward_referral_not_made"
+  | "virtual_ward_step_down_stalled";
 
 export type Severity = "high" | "medium" | "low";
 

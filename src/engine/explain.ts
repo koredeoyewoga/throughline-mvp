@@ -126,6 +126,54 @@ function build(candidate: Candidate): Explanation {
         ],
       };
     }
+    case "cancellation_no_rebook": {
+      const overdue = days(s.overdueHours);
+      return {
+        why: `${name}'s appointment was cancelled by the provider (${s.reason}) and no replacement has been offered — ${overdue} day(s) past the point a rebooking should have happened. The patient has heard nothing.`,
+        recommendedAction: `Ask ${owner} to rebook ${name} within the original clinical timeframe and confirm the new date directly with the patient. Record the cancellation reason so repeat slippage is visible.`,
+        facts: [
+          `Appointment cancelled by the provider — reason: ${s.reason}.`,
+          `${overdue} day(s) past the expected rebooking point; no new appointment and no contact recorded.`,
+          "The gap was caused by the service, not the patient.",
+        ],
+      };
+    }
+    case "package_of_care_delay": {
+      const overdue = days(s.overdueHours);
+      const bed = s.stillInBed ? " while the patient waits in an acute bed" : "";
+      return {
+        why: `A home-care package for ${name} was requested ${overdue + 3} day(s) ago and has not started${bed} — ${overdue} day(s) past the expected start. No first call or package confirmation is recorded.`,
+        recommendedAction: `Ask ${owner} to confirm brokerage status today, agree a start date, and put an interim visit in place if the package cannot start within 48 hours. Update the discharge hub.`,
+        facts: [
+          "A home-care package was requested from social care.",
+          `${overdue} day(s) past the expected start; no start or first-call recorded.`,
+          s.stillInBed ? "Patient is still in an acute bed pending the package." : "Patient is at home awaiting the package.",
+        ],
+      };
+    }
+    case "onward_referral_not_made": {
+      const overdue = days(s.overdueHours);
+      return {
+        why: `A letter/summary for ${name} asked for an onward referral to ${s.target}, but no such referral has been made — ${overdue} day(s) past when it was expected. The instruction has not been picked up.`,
+        recommendedAction: `Ask ${owner} to make the referral to ${s.target} now, using the original letter as the clinical justification, and to confirm back that it has been sent.`,
+        facts: [
+          `An onward referral to ${s.target} was requested in a letter/summary.`,
+          `${overdue} day(s) past the expected point; no matching referral recorded.`,
+        ],
+      };
+    }
+    case "virtual_ward_step_down_stalled": {
+      const overdue = days(s.overdueHours);
+      return {
+        why: `${name} was flagged clinically ready to leave the virtual ward ${overdue + 2} day(s) ago, but no discharge from the virtual ward and no handback to primary care has been recorded — ${overdue} day(s) past the expected step-down. The virtual-ward place stays blocked.`,
+        recommendedAction: `Ask ${owner} to complete the virtual-ward discharge and send the handback to the GP within 24 hours, then release the place for the next patient.`,
+        facts: [
+          "Patient flagged clinically ready to step down from the virtual ward.",
+          `${overdue} day(s) past the expected step-down; no discharge or GP handback recorded.`,
+          "The virtual-ward capacity is blocked while this is open.",
+        ],
+      };
+    }
     default:
       return { why: "A coordination step is overdue.", recommendedAction: "Review and assign an owner.", facts: [] };
   }

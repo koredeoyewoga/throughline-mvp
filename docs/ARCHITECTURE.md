@@ -14,7 +14,7 @@
 
 ```
 SourceEvent[]  ──►  buildPathwayStates()   ──►  detect()            ──►  score()
-(ingested)          expected next-steps         8 failure detectors      itemised 0–100
+(ingested)          expected next-steps         12 failure detectors     itemised 0–100
                     + SLAs + overdue            → Candidate[]
 
                ──►  explain()             ──►  checkAction()        ──►  runDetection() reconcile

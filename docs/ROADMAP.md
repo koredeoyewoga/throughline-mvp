@@ -5,16 +5,16 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Near term — harden the slice
 
-- **Tests.** _Done:_ Vitest suite — unit tests for all eight detectors
-  (fire / does-not-fire fixtures), the scorer (determinism, caps, confidence
-  tempering, clamping), and a full-pipeline integration test on the seed
-  (exactly 8 failures, 0 for the healthy patients, ranking, reconciliation).
-  _Still to do:_ Playwright for the approve → close loop in the UI; the AI-eval
-  suite per `docs/AI-SAFETY.md`.
+- **Tests.** _Done:_ Vitest suite (33 tests) — unit tests for all twelve
+  detectors (fire / does-not-fire fixtures), the scorer (determinism, caps,
+  confidence tempering, clamping), and a full-pipeline integration test on the
+  seed (exactly 12 failures — one per pattern, 0 for the healthy patients,
+  ranking, reconciliation). _Still to do:_ Playwright for the approve → close
+  loop in the UI; the AI-eval suite per `docs/AI-SAFETY.md`.
+- **More patterns.** _Done:_ cancellation not rebooked, package-of-care delay,
+  onward referral after discharge not made, virtual-ward step-down not actioned.
 - **Pathway config.** Move `PATHWAYS` out of code into a per-place config file
   (JSON) with a schema; add an editor screen for oversight users.
-- **More patterns.** Cancellation not rebooked; package-of-care delay; onward
-  referral after discharge not made; virtual-ward step-down not actioned.
 - **Explanations.** Turn on the model layer behind the flag and run the eval
   suite; add per-agent model calls (Document Agent extraction from messier
   free text).

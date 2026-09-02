@@ -238,7 +238,123 @@ export const EVENTS: SourceEvent[] = [
     toOrgId: "org-mft",
   }),
 
+  // ============================================================ Clive Adepoju
+  // Pattern: cancellation_no_rebook (MEDIUM) — provider cancelled, never rebooked.
+  ev("pat-clive-adepoju", "appointment_scheduled", ago(24), "org-mft", "Cardiology follow-up appointment booked", {
+    data: { scheduledFor: ago(10) },
+  }),
+  ev(
+    "pat-clive-adepoju",
+    "appointment_cancelled",
+    ago(10),
+    "org-mft",
+    "Clinic cancelled by the trust — consultant on unplanned leave; patient told a new date would follow",
+    { data: { reason: "consultant unavailable", by: "provider" } },
+  ),
+
+  // ============================================================ Beatrice Sowande
+  // Pattern: package_of_care_delay (HIGH) — package requested, not started, patient in a bed.
+  ev("pat-beatrice-sowande", "admission", ago(12), "org-mft", "Admitted via ED — urinary sepsis and a fall", {
+    toOrgId: "org-mft",
+  }),
+  ev(
+    "pat-beatrice-sowande",
+    "care_package_requested",
+    ago(5),
+    "org-mft",
+    "Home-care package requested from Adult Social Care — four calls per day for personal care and meals",
+    {
+      toOrgId: "org-council",
+      pathway: "discharge:social_care",
+      documentText:
+        "DISCHARGE PLAN. 84yo, lives alone, ground-floor flat. Independent with a frame indoors before admission. Needs 4 calls/day: AM personal care + breakfast, lunch, tea, PM settle. Family live 40 miles away. Discharge to assess not suitable — needs the package in place first.",
+    },
+  ),
+  ev(
+    "pat-beatrice-sowande",
+    "status_note",
+    ago(1),
+    "org-mft",
+    "Ward: this bed is needed; family calling daily asking when the care package will start",
+  ),
+
+  // ============================================================ Harold Mensah
+  // Pattern: onward_referral_not_made (MEDIUM) — summary asked the GP to refer; never done.
+  ev(
+    "pat-harold-mensah",
+    "discharge_summary_issued",
+    ago(12),
+    "org-mft",
+    "Discharge summary issued to the GP",
+    {
+      toOrgId: "org-rpcn",
+      documentText:
+        "DISCHARGE SUMMARY. 79yo, admitted with hyperactive delirium secondary to a UTI, now resolved. Collateral history suggests a 6-month decline in short-term memory pre-dating this admission. PLAN: GP to refer to the community memory assessment service for formal cognitive assessment once fully recovered (4-6 weeks). Continue donepezil review at that point.",
+    },
+  ),
+  ev(
+    "pat-harold-mensah",
+    "task_expected",
+    ago(12),
+    "org-mft",
+    "GP to refer to the community memory assessment service for cognitive assessment",
+    {
+      toOrgId: "org-rpcn",
+      data: {
+        action: "onward_referral",
+        target: "the memory assessment service",
+        slaHours: 168,
+        quote: "GP to refer to the community memory assessment service for formal cognitive assessment once fully recovered.",
+      },
+    },
+  ),
+
+  // ============================================================ Doreen Achebe
+  // Pattern: virtual_ward_step_down_stalled (MEDIUM) — ready to step down, not discharged.
+  ev(
+    "pat-doreen-achebe",
+    "virtual_ward_admission",
+    ago(8),
+    "org-mch",
+    "Admitted to the Meadowford Virtual Ward — infective COPD exacerbation, on the monitoring pathway",
+  ),
+  ev(
+    "pat-doreen-achebe",
+    "virtual_ward_step_down_ready",
+    ago(4),
+    "org-mch",
+    "Clinically ready to step down — obs stable for 48h, back on baseline inhalers",
+    { pathway: "virtual_ward" },
+  ),
+  ev(
+    "pat-doreen-achebe",
+    "status_note",
+    ago(1),
+    "org-mch",
+    "VW note: monitoring kit still on loan; discharge letter to the GP not yet drafted",
+  ),
+
   // ============================================================ HEALTHY PATHWAYS
+  // Kwame Boateng — home-care package started on time.
+  ev("pat-kwame-boateng", "care_package_requested", ago(6), "org-mft", "Home-care package requested — two calls per day", {
+    toOrgId: "org-council",
+    pathway: "discharge:social_care",
+  }),
+  ev("pat-kwame-boateng", "care_package_started", ago(4), "org-council", "Package brokered; first call completed", {
+    pathway: "discharge:social_care",
+  }),
+
+  // Ruth Nwosu — virtual ward stepped down cleanly.
+  ev("pat-ruth-nwosu", "virtual_ward_admission", ago(9), "org-mch", "Admitted to the virtual ward — community-acquired pneumonia"),
+  ev("pat-ruth-nwosu", "virtual_ward_step_down_ready", ago(5), "org-mch", "Clinically ready to step down", {
+    pathway: "virtual_ward",
+  }),
+  ev("pat-ruth-nwosu", "virtual_ward_discharge", ago(4), "org-mch", "Discharged from the virtual ward; GP handback sent", {
+    pathway: "virtual_ward",
+    toOrgId: "org-rpcn",
+  }),
+
+  // ============================================================ HEALTHY PATHWAYS (original)
   // Brian Ashworth — discharge:frailty completed cleanly.
   ev("pat-brian-ashworth", "discharge_ready", ago(12), "org-mft", "Medically fit — community rehab requested", {
     pathway: "discharge:frailty",

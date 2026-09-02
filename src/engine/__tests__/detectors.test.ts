@@ -194,3 +194,111 @@ describe("handover_gap", () => {
     expect(patterns(run([p], events))).not.toContain("handover_gap");
   });
 });
+
+describe("cancellation_no_rebook", () => {
+  it("fires for a provider cancellation past the rebooking SLA with no follow-up", () => {
+    const p = mkPatient("p17");
+    const events = [
+      ev("p17", "appointment_scheduled", daysBefore(24), "org-mft"),
+      ev("p17", "appointment_cancelled", daysBefore(10), "org-mft", { data: { reason: "consultant unavailable" } }),
+    ];
+    const c = run([p], events).find((x) => x.pattern === "cancellation_no_rebook");
+    expect(c).toBeTruthy();
+    expect(c!.signals.providerFault).toBe(true);
+    expect(c!.owner.orgId).toBe("org-mft");
+  });
+
+  it("does not fire when a new appointment is scheduled after the cancellation", () => {
+    const p = mkPatient("p18");
+    const events = [
+      ev("p18", "appointment_cancelled", daysBefore(10), "org-mft", { data: { reason: "x" } }),
+      ev("p18", "appointment_scheduled", daysBefore(7), "org-mft"),
+    ];
+    expect(patterns(run([p], events))).not.toContain("cancellation_no_rebook");
+  });
+});
+
+describe("package_of_care_delay", () => {
+  it("fires when a requested home-care package has not started, high if still in a bed", () => {
+    const p = mkPatient("p19", { flags: ["lives alone"] });
+    const events = [
+      ev("p19", "admission", daysBefore(12), "org-mft", { toOrgId: "org-mft" }),
+      ev("p19", "care_package_requested", daysBefore(5), "org-mft", {
+        pathway: "discharge:social_care",
+        toOrgId: "org-council",
+      }),
+    ];
+    const c = run([p], events).find((x) => x.pattern === "package_of_care_delay");
+    expect(c).toBeTruthy();
+    expect(c!.severityHint).toBe("high");
+    expect(c!.signals.stillInBed).toBe(true);
+    expect(c!.owner.orgId).toBe("org-council");
+  });
+
+  it("does not fire once the package has started", () => {
+    const p = mkPatient("p20");
+    const events = [
+      ev("p20", "care_package_requested", daysBefore(6), "org-mft", {
+        pathway: "discharge:social_care",
+        toOrgId: "org-council",
+      }),
+      ev("p20", "care_package_started", daysBefore(4), "org-council", { pathway: "discharge:social_care" }),
+    ];
+    expect(patterns(run([p], events))).not.toContain("package_of_care_delay");
+  });
+});
+
+describe("onward_referral_not_made", () => {
+  it("fires when a documented onward referral is overdue and never made", () => {
+    const p = mkPatient("p21");
+    const events = [
+      ev("p21", "discharge_summary_issued", daysBefore(12), "org-mft", {
+        toOrgId: "org-rpcn",
+        documentText: "GP to refer to the memory assessment service.",
+      }),
+      ev("p21", "task_expected", daysBefore(12), "org-mft", {
+        toOrgId: "org-rpcn",
+        data: { action: "onward_referral", target: "the memory assessment service", slaHours: 168 },
+      }),
+    ];
+    const c = run([p], events).find((x) => x.pattern === "onward_referral_not_made");
+    expect(c).toBeTruthy();
+    expect(c!.owner.orgId).toBe("org-rpcn");
+    expect(c!.signals.target).toBe("the memory assessment service");
+  });
+
+  it("does not fire once the responsible org makes the referral", () => {
+    const p = mkPatient("p22");
+    const events = [
+      ev("p22", "task_expected", daysBefore(12), "org-mft", {
+        toOrgId: "org-rpcn",
+        data: { action: "onward_referral", target: "the memory assessment service", slaHours: 168 },
+      }),
+      ev("p22", "referral_made", daysBefore(3), "org-rpcn"),
+    ];
+    expect(patterns(run([p], events))).not.toContain("onward_referral_not_made");
+  });
+});
+
+describe("virtual_ward_step_down_stalled", () => {
+  it("fires when a step-down-ready patient has no virtual-ward discharge", () => {
+    const p = mkPatient("p23");
+    const events = [
+      ev("p23", "virtual_ward_admission", daysBefore(8), "org-mch"),
+      ev("p23", "virtual_ward_step_down_ready", daysBefore(4), "org-mch", { pathway: "virtual_ward" }),
+    ];
+    const c = run([p], events).find((x) => x.pattern === "virtual_ward_step_down_stalled");
+    expect(c).toBeTruthy();
+    expect(c!.signals.capacityBlocked).toBe(true);
+    expect(c!.owner.functionArea).toBe("virtual_ward");
+  });
+
+  it("does not fire once the virtual-ward discharge is recorded", () => {
+    const p = mkPatient("p24");
+    const events = [
+      ev("p24", "virtual_ward_step_down_ready", daysBefore(4), "org-mch", { pathway: "virtual_ward" }),
+      ev("p24", "virtual_ward_discharge", daysBefore(3), "org-mch", { pathway: "virtual_ward" }),
+    ];
+    expect(patterns(run([p], events))).not.toContain("virtual_ward_step_down_stalled");
+  });
+});

@@ -133,6 +133,34 @@ export const PATHWAYS: PathwayDefinition[] = [
       },
     ],
   },
+  {
+    key: "discharge:social_care",
+    label: "Hospital discharge — home-care package",
+    triggerEvent: "care_package_requested",
+    steps: [
+      {
+        key: "package_started",
+        description: "Home-care package is in place and the first call has happened",
+        owningFunction: "social_work",
+        slaHours: 72,
+        satisfiedBy: ["care_package_started"],
+      },
+    ],
+  },
+  {
+    key: "virtual_ward",
+    label: "Virtual ward — step-down",
+    triggerEvent: "virtual_ward_step_down_ready",
+    steps: [
+      {
+        key: "stepped_down",
+        description: "Patient discharged from the virtual ward with a handback to primary care",
+        owningFunction: "virtual_ward",
+        slaHours: 48,
+        satisfiedBy: ["virtual_ward_discharge"],
+      },
+    ],
+  },
 ];
 
 export function pathwayByKey(key: string): PathwayDefinition | undefined {

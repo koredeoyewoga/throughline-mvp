@@ -76,6 +76,10 @@ export function detect(
     ...detectLoopNotClosed(ctx),
     ...detectDnaNoRebook(ctx),
     ...detectHandoverGap(ctx),
+    ...detectCancellationNoRebook(ctx),
+    ...detectPackageOfCareDelay(ctx),
+    ...detectOnwardReferralNotMade(ctx),
+    ...detectVirtualWardStepDownStalled(ctx),
   ];
 
   // One candidate per (patient, pattern): keep the strongest signal.
@@ -455,6 +459,184 @@ function detectHandoverGap(ctx: Ctx): Candidate[] {
         syntheticGap(admission.at, `No handover, status note or care-plan share from ${orgName(caseloadOrg)} to the ward`),
       ],
       signals: { admissionAgeHours, caseloadOrg },
+    });
+  }
+  return out;
+}
+
+function detectCancellationNoRebook(ctx: Ctx): Candidate[] {
+  const out: Candidate[] = [];
+  const nowMs = Date.parse(ctx.now);
+  for (const [patientId, pe] of ctx.eventsByPatient) {
+    const cancels = pe
+      .filter((e) => e.type === "appointment_cancelled")
+      .sort((a, b) => a.at.localeCompare(b.at));
+    if (cancels.length === 0) continue;
+    const cancel = cancels[cancels.length - 1];
+    const overdueHours = Math.round((nowMs - Date.parse(cancel.at)) / HOUR) - 120; // 5-day rebooking SLA
+    if (overdueHours <= 0) continue;
+
+    const rebooked = pe.some(
+      (e) =>
+        (e.type === "appointment_scheduled" || e.type === "contact_attempt") &&
+        Date.parse(e.at) > Date.parse(cancel.at),
+    );
+    if (rebooked) continue;
+
+    const patient = ctx.patientsById.get(patientId)!;
+    const original = pe.find((e) => e.type === "appointment_scheduled");
+    const reason = String(cancel.data?.reason ?? "provider cancellation");
+
+    const evidence: EvidenceItem[] = [];
+    if (original) evidence.push(ev(original, "Appointment originally booked"));
+    evidence.push(ev(cancel, "Appointment cancelled by the provider"));
+    evidence.push(syntheticGap(cancel.at, "No replacement appointment offered and no contact with the patient"));
+
+    out.push({
+      key: `${patientId}:cancellation_no_rebook`,
+      patientId,
+      placeId: patient.placeId,
+      pattern: "cancellation_no_rebook",
+      title: "Provider cancelled an appointment and it was never rebooked",
+      severityHint: "medium",
+      confidence: "high",
+      owner: {
+        functionArea: "transfer_of_care",
+        orgId: cancel.fromOrgId,
+        label: teamLabel("transfer_of_care", cancel.fromOrgId),
+      },
+      evidence,
+      signals: { overdueHours, reason, providerFault: true },
+    });
+  }
+  return out;
+}
+
+function detectPackageOfCareDelay(ctx: Ctx): Candidate[] {
+  const out: Candidate[] = [];
+  for (const st of ctx.states.filter((s) => s.pathway === "discharge:social_care")) {
+    const started = st.steps.find((s) => s.step.key === "package_started");
+    if (!started || started.satisfied || started.overdueHours <= 0) continue;
+
+    const pe = ctx.eventsByPatient.get(st.patientId) ?? [];
+    const request = pe.find((e) => e.id === st.triggeredBy);
+    const admission = pe.find((e) => e.type === "admission");
+    const stillInBed = Boolean(admission) && !pe.some((e) => e.type === "care_package_started");
+    const note = [...pe].reverse().find((e) => e.type === "status_note");
+    const patient = ctx.patientsById.get(st.patientId)!;
+
+    const evidence: EvidenceItem[] = [];
+    if (request) evidence.push(ev(request, "Home-care package requested"));
+    evidence.push(syntheticGap(request?.at ?? st.triggeredAt, "No package start or first-call recorded by social care / the provider"));
+    if (note) evidence.push(ev(note, "Status note"));
+
+    out.push({
+      key: `${st.patientId}:package_of_care_delay`,
+      patientId: st.patientId,
+      placeId: patient.placeId,
+      pattern: "package_of_care_delay",
+      title: stillInBed
+        ? "Home-care package not started — patient waiting in an acute bed"
+        : "Home-care package requested but not started",
+      severityHint: stillInBed ? "high" : "medium",
+      confidence: "high",
+      owner: {
+        functionArea: "social_work",
+        orgId: request?.toOrgId ?? "org-council",
+        label: teamLabel("social_work", request?.toOrgId ?? "org-council"),
+      },
+      evidence,
+      signals: {
+        overdueHours: started.overdueHours,
+        stillInBed,
+        livesAlone: patient.flags.includes("lives alone"),
+      },
+    });
+  }
+  return out;
+}
+
+function detectOnwardReferralNotMade(ctx: Ctx): Candidate[] {
+  const out: Candidate[] = [];
+  const nowMs = Date.parse(ctx.now);
+  for (const [patientId, pe] of ctx.eventsByPatient) {
+    const onwardTasks = pe.filter(
+      (e) => e.type === "task_expected" && String(e.data?.action ?? "") === "onward_referral",
+    );
+    for (const task of onwardTasks) {
+      const overdueHours = Math.round((nowMs - Date.parse(task.at)) / HOUR) - Number(task.data?.slaHours ?? 168);
+      if (overdueHours <= 0) continue;
+
+      // Any referral made by the responsible org after the task was raised.
+      const responsibleOrg = task.toOrgId ?? "org-rpcn";
+      const made = pe.some(
+        (e) => e.type === "referral_made" && e.fromOrgId === responsibleOrg && Date.parse(e.at) >= Date.parse(task.at),
+      );
+      if (made) continue;
+
+      const patient = ctx.patientsById.get(patientId)!;
+      const source = pe.find((e) => e.documentText && (e.type === "discharge_summary_issued" || e.type === "status_note"));
+      const target = String(task.data?.target ?? "the named service");
+
+      const evidence: EvidenceItem[] = [];
+      if (source) evidence.push(ev(source, "Letter / summary asking for an onward referral", String(task.data?.quote ?? "")));
+      evidence.push(ev(task, `Onward referral to ${target} expected from ${orgName(responsibleOrg)}`));
+      evidence.push(syntheticGap(task.at, `No referral to ${target} recorded`));
+
+      out.push({
+        key: `${patientId}:onward_referral_not_made`,
+        patientId,
+        placeId: patient.placeId,
+        pattern: "onward_referral_not_made",
+        title: `Requested onward referral to ${target} was never made`,
+        severityHint: "medium",
+        confidence: "high",
+        owner: {
+          functionArea: "gp_practice",
+          orgId: responsibleOrg,
+          label: teamLabel("gp_practice", responsibleOrg),
+        },
+        evidence,
+        signals: { overdueHours, target },
+      });
+    }
+  }
+  return out;
+}
+
+function detectVirtualWardStepDownStalled(ctx: Ctx): Candidate[] {
+  const out: Candidate[] = [];
+  for (const st of ctx.states.filter((s) => s.pathway === "virtual_ward")) {
+    const stepped = st.steps.find((s) => s.step.key === "stepped_down");
+    if (!stepped || stepped.satisfied || stepped.overdueHours <= 0) continue;
+
+    const pe = ctx.eventsByPatient.get(st.patientId) ?? [];
+    const readyEv = pe.find((e) => e.id === st.triggeredBy);
+    const admit = pe.find((e) => e.type === "virtual_ward_admission");
+    const note = [...pe].reverse().find((e) => e.type === "status_note");
+    const patient = ctx.patientsById.get(st.patientId)!;
+
+    const evidence: EvidenceItem[] = [];
+    if (admit) evidence.push(ev(admit, "Admitted to the virtual ward"));
+    if (readyEv) evidence.push(ev(readyEv, "Clinically ready to step down"));
+    evidence.push(syntheticGap(readyEv?.at ?? st.triggeredAt, "No discharge from the virtual ward and no handback to primary care"));
+    if (note) evidence.push(ev(note, "Status note"));
+
+    out.push({
+      key: `${st.patientId}:virtual_ward_step_down_stalled`,
+      patientId: st.patientId,
+      placeId: patient.placeId,
+      pattern: "virtual_ward_step_down_stalled",
+      title: "Virtual-ward step-down stalled — the capacity is blocked",
+      severityHint: "medium",
+      confidence: "high",
+      owner: {
+        functionArea: "virtual_ward",
+        orgId: readyEv?.fromOrgId ?? "org-mch",
+        label: teamLabel("virtual_ward", readyEv?.fromOrgId ?? "org-mch"),
+      },
+      evidence,
+      signals: { overdueHours: stepped.overdueHours, capacityBlocked: true },
     });
   }
   return out;

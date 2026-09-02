@@ -119,6 +119,55 @@ export const PATIENTS: Patient[] = [
     ],
   ),
 
+  patient(
+    "pat-clive-adepoju",
+    "Clive Adepoju",
+    "999 014 3390",
+    1954,
+    "72, heart failure. A cardiology follow-up was cancelled by the trust ten days ago (consultant on unplanned leave) and has not been rebooked.",
+    ["heart failure", "provider cancellation", "no rebook"],
+    [
+      { orgId: "org-mft", localId: "MFT-453110", confidence: 1 },
+      { orgId: "org-rpcn", localId: "RIV-1902", confidence: 0.94 },
+    ],
+  ),
+  patient(
+    "pat-beatrice-sowande",
+    "Beatrice Sowande",
+    "999 015 7712",
+    1942,
+    "84, admitted with a UTI and a fall. Medically fit for discharge but needs a home-care package (four calls a day); the package was requested five days ago and has not started.",
+    ["lives alone", "package of care", "delayed discharge"],
+    [
+      { orgId: "org-mft", localId: "MFT-453401", confidence: 1 },
+      { orgId: "org-council", localId: "MC-SW-9310", confidence: 0.95 },
+    ],
+  ),
+  patient(
+    "pat-harold-mensah",
+    "Harold Mensah",
+    "999 016 2204",
+    1947,
+    "79, discharged after a delirium episode. The discharge summary asked the GP to refer to the community memory assessment service; twelve days on, no referral has been made.",
+    ["?cognitive decline", "onward referral outstanding"],
+    [
+      { orgId: "org-mft", localId: "MFT-453880", confidence: 1 },
+      { orgId: "org-rpcn", localId: "RIV-2401", confidence: 0.96 },
+    ],
+  ),
+  patient(
+    "pat-doreen-achebe",
+    "Doreen Achebe",
+    "999 017 5561",
+    1949,
+    "77, on the Meadowford Virtual Ward for an infective COPD exacerbation. Flagged clinically ready to step down four days ago; no virtual-ward discharge or GP handback recorded.",
+    ["COPD", "virtual ward", "step-down stalled"],
+    [
+      { orgId: "org-mch", localId: "MCH-13010", confidence: 1 },
+      { orgId: "org-rpcn", localId: "RIV-3110", confidence: 0.95 },
+    ],
+  ),
+
   // --- Healthy pathways (should produce NO exception) ---
   patient(
     "pat-brian-ashworth",
@@ -166,6 +215,30 @@ export const PATIENTS: Patient[] = [
     [
       { orgId: "org-mch", localId: "MCH-10500", confidence: 1 },
       { orgId: "org-rpcn", localId: "RIV-2500", confidence: 0.96 },
+    ],
+  ),
+  patient(
+    "pat-kwame-boateng",
+    "Kwame Boateng",
+    "999 018 4471",
+    1944,
+    "82, discharged with a home-care package. Package brokered and first call completed two days after the request.",
+    ["healthy pathway"],
+    [
+      { orgId: "org-mft", localId: "MFT-454000", confidence: 1 },
+      { orgId: "org-council", localId: "MC-SW-9400", confidence: 0.97 },
+    ],
+  ),
+  patient(
+    "pat-ruth-nwosu",
+    "Ruth Nwosu",
+    "999 019 8830",
+    1951,
+    "75, virtual ward for pneumonia. Stepped down and discharged with a GP handback within the expected window.",
+    ["healthy pathway"],
+    [
+      { orgId: "org-mch", localId: "MCH-13200", confidence: 1 },
+      { orgId: "org-rpcn", localId: "RIV-3300", confidence: 0.96 },
     ],
   ),
 ];

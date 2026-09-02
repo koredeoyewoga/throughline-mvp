@@ -1,4 +1,5 @@
 import { NOW } from "@/data/events";
+import type { FailurePattern } from "@/domain/types";
 
 const HOUR = 3600 * 1000;
 
@@ -35,18 +36,25 @@ export function shortDate(iso: string): string {
   return d.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
 }
 
+const PATTERN_LABELS: Record<FailurePattern, string> = {
+  referral_unactioned: "Referral not actioned",
+  discharge_task_dropped: "Discharge task dropped",
+  follow_up_missed: "Follow-up missed",
+  referral_ping_pong: "Referral ping-pong",
+  duplicate_assessment: "Duplicate assessment",
+  loop_not_closed: "Loop not closed",
+  dna_no_rebook: "DNA — no rebooking",
+  handover_gap: "Handover gap",
+  cancellation_no_rebook: "Cancellation — no rebooking",
+  package_of_care_delay: "Care package delay",
+  onward_referral_not_made: "Onward referral not made",
+  virtual_ward_step_down_stalled: "Virtual ward step-down stalled",
+};
+
+export const FAILURE_PATTERNS = Object.keys(PATTERN_LABELS) as FailurePattern[];
+
 export function patternLabel(pattern: string): string {
-  const map: Record<string, string> = {
-    referral_unactioned: "Referral not actioned",
-    discharge_task_dropped: "Discharge task dropped",
-    follow_up_missed: "Follow-up missed",
-    referral_ping_pong: "Referral ping-pong",
-    duplicate_assessment: "Duplicate assessment",
-    loop_not_closed: "Loop not closed",
-    dna_no_rebook: "DNA — no rebooking",
-    handover_gap: "Handover gap",
-  };
-  return map[pattern] ?? pattern;
+  return PATTERN_LABELS[pattern as FailurePattern] ?? pattern;
 }
 
 export function statusLabel(status: string): string {

@@ -21,8 +21,10 @@ All types in `src/domain/types.ts`.
 `EventType`: referral_made · referral_acknowledged · referral_accepted ·
 referral_rejected · assessment_completed · discharge_ready ·
 discharge_summary_issued · task_expected · visit_booked · visit_completed ·
-contact_attempt · appointment_scheduled · appointment_dna · admission ·
-readmission · status_note.
+contact_attempt · appointment_scheduled · appointment_dna ·
+appointment_cancelled · care_package_requested · care_package_started ·
+virtual_ward_admission · virtual_ward_step_down_ready · virtual_ward_discharge ·
+admission · readmission · status_note.
 
 Real feeds map onto this shape via adapters (see ARCHITECTURE.md).
 
@@ -36,11 +38,13 @@ ordered list of **ExpectedStep** (`description`, `owningFunction`, `slaHours`,
 `satisfiedByEventId?`, `dueAt`, `overdueHours`.
 
 Pathways in the seed: `discharge:frailty`, `discharge:district_nursing`,
-`falls`, `neighbourhood:complex`, `outpatient`.
+`falls`, `neighbourhood:complex`, `outpatient`, `discharge:social_care`,
+`virtual_ward`. (`cancellation_no_rebook` and `onward_referral_not_made` are
+detected directly from events rather than a pathway definition.)
 
 ## Derived: the coordination item
 
-**Exception**: `id`, `patientId`, `placeId`, `pattern` (one of 8), `severity`,
+**Exception**: `id`, `patientId`, `placeId`, `pattern` (one of 12), `severity`,
 `score` + `scoreBreakdown[]`, `title`, `why` + `whySource`, `evidence[]`
 (**EvidenceItem** = event ref + label + detail + optional `quote`),
 `recommendedAction`, `owner`, `confidence`, `status`, `createdAt` / `updatedAt`,

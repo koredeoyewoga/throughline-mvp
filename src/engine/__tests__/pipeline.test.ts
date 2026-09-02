@@ -8,28 +8,39 @@ function freshState(): AppState {
 }
 
 describe("runDetection on the synthetic seed", () => {
-  it("finds exactly the eight seeded coordination failures", async () => {
+  it("finds exactly the twelve seeded coordination failures, one per pattern", async () => {
     const state = freshState();
     const exceptions = await runDetection(state);
     const patterns = exceptions.map((e) => e.pattern).sort();
     expect(patterns).toEqual(
       [
+        "cancellation_no_rebook",
         "discharge_task_dropped",
         "dna_no_rebook",
         "duplicate_assessment",
         "follow_up_missed",
         "handover_gap",
         "loop_not_closed",
+        "onward_referral_not_made",
+        "package_of_care_delay",
         "referral_ping_pong",
         "referral_unactioned",
+        "virtual_ward_step_down_stalled",
       ].sort(),
     );
   });
 
-  it("produces no exception for the four healthy-pathway patients", async () => {
+  it("produces no exception for any healthy-pathway patient", async () => {
     const state = freshState();
     const exceptions = await runDetection(state);
-    const healthy = ["pat-brian-ashworth", "pat-yvonne-clarke", "pat-nasrin-khan", "pat-leonard-price"];
+    const healthy = [
+      "pat-brian-ashworth",
+      "pat-yvonne-clarke",
+      "pat-nasrin-khan",
+      "pat-leonard-price",
+      "pat-kwame-boateng",
+      "pat-ruth-nwosu",
+    ];
     for (const id of healthy) {
       expect(exceptions.some((e) => e.patientId === id)).toBe(false);
     }

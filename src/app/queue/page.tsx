@@ -5,7 +5,7 @@ import { ExceptionCard } from "@/components/ExceptionCard";
 import { KpiStrip } from "@/components/KpiStrip";
 import { RefreshButton } from "@/components/RefreshButton";
 import { ResetButton } from "@/components/ResetButton";
-import { patternLabel } from "@/lib/format";
+import { patternLabel, FAILURE_PATTERNS } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +96,8 @@ export default async function QueuePage(props: {
           <li>Synthetic events from every organisation in the place are ingested and resolved to one patient record.</li>
           <li>A pathway-state model is built: what should happen next on each pathway, and by when.</li>
           <li>
-            The Coordination Agent detects deviations — {Object.keys(patternLabelMap()).map(patternLabel).join(", ")}.
+            The Coordination Agent detects {FAILURE_PATTERNS.length} deviation types —{" "}
+            {FAILURE_PATTERNS.map(patternLabel).join(", ")}.
           </li>
           <li>Each is scored by a deterministic, fully itemised priority formula (no hidden model in the ranking).</li>
           <li>An explanation and a recommended action are drafted; governance checks run before you see it.</li>
@@ -105,17 +106,4 @@ export default async function QueuePage(props: {
       </details>
     </div>
   );
-}
-
-function patternLabelMap() {
-  return {
-    referral_unactioned: 1,
-    discharge_task_dropped: 1,
-    follow_up_missed: 1,
-    referral_ping_pong: 1,
-    duplicate_assessment: 1,
-    loop_not_closed: 1,
-    dna_no_rebook: 1,
-    handover_gap: 1,
-  };
 }

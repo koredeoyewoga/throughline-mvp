@@ -15,9 +15,13 @@ export interface ScoreResult {
 const PATTERN_BASE: Record<Candidate["pattern"], number> = {
   referral_unactioned: 30,
   referral_ping_pong: 30,
+  package_of_care_delay: 30,
   discharge_task_dropped: 28,
+  onward_referral_not_made: 24,
   loop_not_closed: 22,
+  virtual_ward_step_down_stalled: 22,
   follow_up_missed: 20,
+  cancellation_no_rebook: 20,
   dna_no_rebook: 18,
   handover_gap: 18,
   duplicate_assessment: 10,
@@ -55,6 +59,8 @@ export function score(candidate: Candidate): ScoreResult {
   if (bool(s.livesAlone)) add("Patient lives alone", 5);
   if (bool(s.recurrentFalls)) add("Recurrent falls — injury risk", 5);
   if (bool(s.vulnerable)) add("Additional vulnerability flags", 4);
+  if (bool(s.capacityBlocked)) add("A virtual-ward place is blocked", 8);
+  if (bool(s.providerFault)) add("The service, not the patient, caused the gap", 6);
 
   let total = breakdown.reduce((sum, b) => sum + b.points, 0);
 
