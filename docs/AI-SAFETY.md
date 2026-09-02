@@ -20,6 +20,7 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | Timeout / fail-safe on the model call | 12s `AbortSignal.timeout`; any failure falls back to deterministic text |
 | No PII in URLs or logs | synthetic ids only; the API takes ids in the path, not patient data |
 | Tenancy shape | every entity carries `placeId`; the query layer is place-scoped by construction |
+| Config changes are constrained + logged | `validateConfig` clamps every knob to a safe range; a save writes an audit entry and re-runs detection so the effect is visible and attributable |
 | No autonomous change to a clinical record | resolving events are labelled "recorded via Throughline after coordinator action" and live only in this system's state |
 
 ## Out of scope for the MVP (by design)

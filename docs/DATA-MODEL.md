@@ -62,6 +62,12 @@ entries carry `aiIdentified`, `aiRecommended`, `humanDecision`, `note`,
 `AppState` = the `WorldSeed` (now, places, orgs, teams, patients, events) plus
 `exceptions[]`, `audit[]`, `lastRunAt`. Written to `.data/state.json`.
 
+**PlaceConfig** (`src/config/schema.ts`) is separate from `AppState`: `version`,
+`pathwaySlaOverrides` (`"<pathwayKey>/<stepKey>" -> hours`), `thresholds`,
+`scoring` (`patternBase` per pattern + overdue rate/cap + severity cut-offs),
+`kpi`. Written to `.data/config.json`; `validateConfig` clamps and reports
+rather than throwing.
+
 ## Data quality / validation notes
 
 - Entity resolution is represented by `Patient.sourceIds[].confidence`; the

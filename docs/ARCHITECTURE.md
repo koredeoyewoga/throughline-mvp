@@ -53,6 +53,20 @@ IEC** discharge documents, **PDS/Spine** for identity, **CIS2 / NHS login** for
 auth. `EventType` and `SourceEvent` already carry the fields these map onto
 (patient identity, from/to organisation, pathway, timestamp, document text).
 
+## Place configuration
+
+`src/config/` holds a `PlaceConfig` — pathway SLA overrides
+(`"<pathwayKey>/<stepKey>" -> hours`), detection thresholds, the priority
+weights + severity cut-offs, and the KPI assumptions. `validateConfig` is pure
+and total (clamps and reports rather than throwing); `getConfig()` reads
+`.data/config.json` merged over `DEFAULT_CONFIG`. The engine reads config at the
+top of `runDetection` and threads it into `buildPathwayStates` (via
+`getPathways()`), `detect(...)`, `score(...)` and `computeKpis(...)`. `PATHWAYS`
+and `DEFAULT_CONFIG` remain the untouched in-code defaults, so every test that
+does not pass config explicitly runs against them. The `/settings` screen is the
+editor; a save re-runs detection. In production this becomes per-place config
+with an approval trail.
+
 ## Persistence seam (post-MVP)
 
 `src/store/db.ts` is the only module that touches storage. It exposes

@@ -13,8 +13,12 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
   loop in the UI; the AI-eval suite per `docs/AI-SAFETY.md`.
 - **More patterns.** _Done:_ cancellation not rebooked, package-of-care delay,
   onward referral after discharge not made, virtual-ward step-down not actioned.
-- **Pathway config.** Move `PATHWAYS` out of code into a per-place config file
-  (JSON) with a schema; add an editor screen for oversight users.
+- **Pathway config.** _Done:_ `PlaceConfig` (schema + validator in `src/config/`)
+  holds pathway SLA overrides, detection thresholds, the priority weights and the
+  KPI assumptions; the `/settings` screen edits them and re-runs detection;
+  config persists to `.data/config.json` separately from the demo state.
+  _Still to do:_ per-place config (multi-tenant), an approval trail on changes,
+  and exposing the fixed consequence-factor weights.
 - **Explanations.** Turn on the model layer behind the flag and run the eval
   suite; add per-agent model calls (Document Agent extraction from messier
   free text).

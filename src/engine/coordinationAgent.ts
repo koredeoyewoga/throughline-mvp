@@ -15,8 +15,11 @@ import type {
 } from "@/domain/types";
 import { orgName, TEAMS } from "@/data/world";
 import { quoteForTask } from "./documentAgent";
+import { DEFAULT_CONFIG, type PlaceConfig } from "@/config/schema";
 
 const HOUR = 3600 * 1000;
+
+type Thresholds = PlaceConfig["thresholds"];
 
 export interface Candidate {
   key: string; // stable dedupe key: `${patientId}:${pattern}`
@@ -51,6 +54,7 @@ interface Ctx {
   events: SourceEvent[];
   eventsByPatient: Map<string, SourceEvent[]>;
   states: PathwayState[];
+  thresholds: Thresholds;
 }
 
 export function detect(
@@ -58,6 +62,7 @@ export function detect(
   events: SourceEvent[],
   states: PathwayState[],
   now: string,
+  thresholds: Thresholds = DEFAULT_CONFIG.thresholds,
 ): Candidate[] {
   const ctx: Ctx = {
     now,
@@ -65,6 +70,7 @@ export function detect(
     events,
     eventsByPatient: groupBy(events, (e) => e.patientId),
     states,
+    thresholds,
   };
 
   const candidates: Candidate[] = [
@@ -244,7 +250,7 @@ function detectReferralPingPong(ctx: Ctx): Candidate[] {
     const rejections = falls.filter((e) => e.type === "referral_rejected");
     const accepts = falls.filter((e) => e.type === "referral_accepted");
     const firstReferral = falls.find((e) => e.type === "referral_made");
-    if (rejections.length < 2 || !firstReferral) continue;
+    if (rejections.length < ctx.thresholds.pingPongMinRejections || !firstReferral) continue;
     const lastRejection = rejections[rejections.length - 1];
     const acceptedAfter = accepts.some((a) => Date.parse(a.at) > Date.parse(lastRejection.at));
     if (acceptedAfter) continue;
@@ -298,7 +304,7 @@ function detectDuplicateAssessment(ctx: Ctx): Candidate[] {
         if (!domA || domA !== domB) continue;
         if (a.fromOrgId === b.fromOrgId) continue;
         const gapDays = daysBetween(a.at, b.at);
-        if (gapDays > 10) continue;
+        if (gapDays > ctx.thresholds.duplicateAssessmentWindowDays) continue;
 
         const patient = ctx.patientsById.get(patientId)!;
         const note = [...pe].reverse().find((e) => e.type === "status_note");
@@ -340,7 +346,14 @@ function detectLoopNotClosed(ctx: Ctx): Candidate[] {
     const accepted = st.steps.find((s) => s.step.key === "referral_accepted");
     const booked = st.steps.find((s) => s.step.key === "first_visit_booked");
     const done = st.steps.find((s) => s.step.key === "first_visit_done");
-    if (!accepted?.satisfied || !booked?.satisfied || !done || done.satisfied || done.overdueHours < 48) continue;
+    if (
+      !accepted?.satisfied ||
+      !booked?.satisfied ||
+      !done ||
+      done.satisfied ||
+      done.overdueHours < ctx.thresholds.loopNotClosedMinOverdueHours
+    )
+      continue;
 
     const pe = ctx.eventsByPatient.get(st.patientId) ?? [];
     const acceptEv = pe.find((e) => e.id === accepted.satisfiedByEventId);
@@ -415,7 +428,7 @@ function detectHandoverGap(ctx: Ctx): Candidate[] {
   const nowMs = Date.parse(ctx.now);
   for (const [patientId, pe] of ctx.eventsByPatient) {
     const admission = pe.find(
-      (e) => e.type === "admission" && (nowMs - Date.parse(e.at)) / HOUR <= 7 * 24,
+      (e) => e.type === "admission" && (nowMs - Date.parse(e.at)) / HOUR <= ctx.thresholds.handoverAdmissionWindowDays * 24,
     );
     if (!admission) continue;
     const admitOrg = admission.toOrgId ?? admission.fromOrgId;
@@ -426,7 +439,7 @@ function detectHandoverGap(ctx: Ctx): Candidate[] {
         (e) =>
           (e.type === "assessment_completed" || e.type === "status_note") &&
           e.fromOrgId !== admitOrg &&
-          (nowMs - Date.parse(e.at)) / HOUR <= 200 * 24,
+          (nowMs - Date.parse(e.at)) / HOUR <= ctx.thresholds.caseloadLookbackDays * 24,
       )
       .sort((a, b) => b.at.localeCompare(a.at));
     if (caseloadContacts.length === 0) continue;
@@ -473,7 +486,8 @@ function detectCancellationNoRebook(ctx: Ctx): Candidate[] {
       .sort((a, b) => a.at.localeCompare(b.at));
     if (cancels.length === 0) continue;
     const cancel = cancels[cancels.length - 1];
-    const overdueHours = Math.round((nowMs - Date.parse(cancel.at)) / HOUR) - 120; // 5-day rebooking SLA
+    const overdueHours =
+      Math.round((nowMs - Date.parse(cancel.at)) / HOUR) - ctx.thresholds.cancellationRebookSlaHours;
     if (overdueHours <= 0) continue;
 
     const rebooked = pe.some(
@@ -564,7 +578,9 @@ function detectOnwardReferralNotMade(ctx: Ctx): Candidate[] {
       (e) => e.type === "task_expected" && String(e.data?.action ?? "") === "onward_referral",
     );
     for (const task of onwardTasks) {
-      const overdueHours = Math.round((nowMs - Date.parse(task.at)) / HOUR) - Number(task.data?.slaHours ?? 168);
+      const overdueHours =
+        Math.round((nowMs - Date.parse(task.at)) / HOUR) -
+        Number(task.data?.slaHours ?? ctx.thresholds.onwardReferralDefaultSlaHours);
       if (overdueHours <= 0) continue;
 
       // Any referral made by the responsible org after the task was raised.

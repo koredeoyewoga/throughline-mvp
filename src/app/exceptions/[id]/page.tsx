@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getException, getState } from "@/store/db";
 import { buildPathwayStates, resolutionSummary } from "@/engine/dataIntelligence";
-import { pathwayByKey } from "@/domain/pathways";
+import { pathwayByKey, getPathways } from "@/domain/pathways";
 import { EvidenceList } from "@/components/EvidenceList";
 import { DecisionPanel } from "@/components/DecisionPanel";
 import { SeverityBadge, StatusBadge, ConfidenceBadge } from "@/components/Badge";
@@ -24,7 +24,7 @@ export default async function ExceptionPage(props: { params: Promise<{ id: strin
     if (ev) eventOrgs[it.eventId] = ev.fromOrgId;
   }
 
-  const pathwayStates = buildPathwayStates(state.patients, state.events, state.now).filter(
+  const pathwayStates = buildPathwayStates(state.patients, state.events, state.now, getPathways()).filter(
     (ps) => ps.patientId === patient.id,
   );
 

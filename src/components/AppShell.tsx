@@ -6,6 +6,7 @@ const NAV = [
   { href: "/queue", label: "Attention queue" },
   { href: "/kpis", label: "Impact" },
   { href: "/audit", label: "Audit" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export function AppShell({ role, children }: { role: Role; children: React.ReactNode }) {

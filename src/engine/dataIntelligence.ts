@@ -7,15 +7,20 @@
  * Permissions: read-only over the ingested event set. No free-form access.
  */
 import type { PathwayState, SourceEvent, Patient } from "@/domain/types";
-import { PATHWAYS } from "@/domain/pathways";
+import { PATHWAYS, type PathwayDefinition } from "@/domain/pathways";
 
 const HOUR = 3600 * 1000;
 
-export function buildPathwayStates(patients: Patient[], events: SourceEvent[], now: string): PathwayState[] {
+export function buildPathwayStates(
+  patients: Patient[],
+  events: SourceEvent[],
+  now: string,
+  pathways: PathwayDefinition[] = PATHWAYS,
+): PathwayState[] {
   const nowMs = Date.parse(now);
   const states: PathwayState[] = [];
 
-  for (const def of PATHWAYS) {
+  for (const def of pathways) {
     for (const patient of patients) {
       const pEvents = events
         .filter((e) => e.patientId === patient.id)

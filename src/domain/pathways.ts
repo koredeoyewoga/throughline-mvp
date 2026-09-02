@@ -4,6 +4,8 @@
  * local operating procedures; here a representative set is hard-coded.
  */
 import type { ExpectedStep, EventType } from "./types";
+import { getConfig } from "@/config";
+import { applySlaOverrides } from "@/config/apply";
 
 export interface PathwayDefinition {
   key: string;
@@ -165,4 +167,13 @@ export const PATHWAYS: PathwayDefinition[] = [
 
 export function pathwayByKey(key: string): PathwayDefinition | undefined {
   return PATHWAYS.find((p) => p.key === key);
+}
+
+/**
+ * The pathway list with the active place config's per-step SLA overrides
+ * applied. Server-only (the config read touches the filesystem). Detection and
+ * the pathway timeline use this; `PATHWAYS` remains the untouched default.
+ */
+export function getPathways(): PathwayDefinition[] {
+  return applySlaOverrides(PATHWAYS, getConfig().pathwaySlaOverrides);
 }

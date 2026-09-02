@@ -99,19 +99,37 @@ The `/kpis` page separates **measured** figures (from this system's own events)
 from **estimated** ones (illustrative, with the assumption stated). Estimates
 are never presented as outcomes.
 
+### Settings — tuning it to a place
+
+`/settings` exposes the operational knobs a place / ICB would adjust:
+
+- **Pathway SLAs** — the hours allowed for each step of each pathway.
+- **Detection thresholds** — how many rejections before "ping-pong" flags, the
+  duplicate-assessment window, the handover look-back, etc.
+- **Priority score** — the base weight for each failure type, the overdue
+  rate/cap, and the HIGH / MEDIUM cut-offs.
+- **KPI assumptions** — the two multipliers behind the estimated figures.
+
+Saving validates the input (out-of-range values are clamped and reported),
+writes `.data/config.json`, and re-runs detection immediately. Tightening a
+threshold auto-closes the items it no longer catches; loosening it again
+reopens any that were *only* auto-closed. "Reset demo to seed" does not touch
+config; there is a separate "Reset all to defaults" on the Settings screen.
+
 ---
 
 ## Architecture (MVP)
 
 ```
 src/
-  domain/        types + pathway definitions (expected next-steps + SLAs)
+  domain/        types + pathway definitions (defaults; SLAs are config-overridable)
+  config/        PlaceConfig schema + validator, SLA/threshold/scoring overrides
   data/          synthetic world: organisations, patients, events, seed
   engine/
     dataIntelligence   entity resolution + pathway-state model
     documentAgent      task/timeframe extraction from referral & summary text
-    coordinationAgent  the 12 failure detectors  (deterministic)
-    prioritisation     itemised, explainable scoring  (no hidden model)
+    coordinationAgent  the 12 failure detectors  (deterministic, config-driven thresholds)
+    prioritisation     itemised, explainable scoring  (no hidden model; config-driven weights)
     governance         policy checks before a human sees the recommendation
     explain            deterministic "why" + action; optional model rephrase
     llm                optional Anthropic adapter (plain fetch, no SDK)
@@ -139,7 +157,10 @@ runtime for all server code. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | `GET` | `/api/exceptions/:id` | one item |
 | `POST` | `/api/exceptions/:id/decision` | `{ kind, note?, amendedAction? }` — kind ∈ approve/modify/reject/escalate/close |
 | `POST` | `/api/refresh` | re-run detection, preserving decisions |
-| `POST` | `/api/reset` | rebuild from the synthetic seed |
+| `POST` | `/api/reset` | rebuild coordination state from the synthetic seed |
+| `GET` | `/api/config` | current place config + defaults + SLA rows |
+| `PUT` | `/api/config` | validate & save config, then re-run detection |
+| `DELETE` | `/api/config` | reset config to built-in defaults, then re-run |
 
 ---
 

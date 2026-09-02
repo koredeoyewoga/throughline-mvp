@@ -1,12 +1,13 @@
 import { getState } from "@/store/db";
 import { computeKpis } from "@/engine/kpis";
 import { patternLabel } from "@/lib/format";
+import { getConfig } from "@/config";
 
 export const dynamic = "force-dynamic";
 
 export default async function KpisPage() {
   const state = await getState();
-  const kpis = computeKpis(state);
+  const kpis = computeKpis(state, getConfig().kpi);
 
   const byPattern = new Map<string, { total: number; closed: number }>();
   for (const e of state.exceptions) {

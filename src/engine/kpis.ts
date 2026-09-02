@@ -5,14 +5,9 @@
  * presented as outcomes.
  */
 import type { AppState, Kpi, Exception } from "@/domain/types";
+import { DEFAULT_CONFIG, type PlaceConfig } from "@/config/schema";
 
 const HOUR = 3600 * 1000;
-
-/** Illustrative assumptions — clearly stated wherever an estimate is shown. */
-const ASSUMPTIONS = {
-  coordinatorHoursPerResolvedItem: 0.5,
-  shareOfDelayAvoided: 0.5,
-};
 
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -27,7 +22,7 @@ function firstHumanDecisionHours(ex: Exception): number | null {
   return (Date.parse(human.at) - Date.parse(ex.createdAt)) / HOUR;
 }
 
-export function computeKpis(state: AppState): Kpi[] {
+export function computeKpis(state: AppState, kpiCfg: PlaceConfig["kpi"] = DEFAULT_CONFIG.kpi): Kpi[] {
   const ex = state.exceptions;
   const open = ex.filter((e) => e.status === "open" || e.status === "in_progress" || e.status === "escalated");
   const closed = ex.filter((e) => e.status === "closed");
@@ -77,16 +72,16 @@ export function computeKpis(state: AppState): Kpi[] {
     {
       key: "coordinator_time",
       label: "Coordinator time redeployed",
-      value: `~${(closed.length * ASSUMPTIONS.coordinatorHoursPerResolvedItem).toFixed(1)} h`,
+      value: `~${(closed.length * kpiCfg.coordinatorHoursPerResolvedItem).toFixed(1)} h`,
       basis: "estimated",
-      note: `Assumption: ${ASSUMPTIONS.coordinatorHoursPerResolvedItem} h of manual chasing avoided per resolved item. Illustrative — to be measured with a design partner.`,
+      note: `Assumption: ${kpiCfg.coordinatorHoursPerResolvedItem} h of manual chasing avoided per resolved item. Illustrative — to be measured with a design partner.`,
     },
     {
       key: "interface_delay",
       label: "Interface delay-days avoided",
-      value: `~${Math.round(delayDaysAtSurface * ASSUMPTIONS.shareOfDelayAvoided)}`,
+      value: `~${Math.round(delayDaysAtSurface * kpiCfg.shareOfDelayAvoided)}`,
       basis: "estimated",
-      note: `Assumption: ${ASSUMPTIONS.shareOfDelayAvoided * 100}% of the days an item was overdue at the point of resolution would have continued to accrue without earlier detection. Illustrative.`,
+      note: `Assumption: ${kpiCfg.shareOfDelayAvoided * 100}% of the days an item was overdue at the point of resolution would have continued to accrue without earlier detection. Illustrative.`,
     },
     {
       key: "duplication",

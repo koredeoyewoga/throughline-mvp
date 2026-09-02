@@ -2,30 +2,18 @@
  * Prioritisation Agent (deterministic, explainable).
  * There is no hidden model in the ranking path. Every point is attributable to
  * a named factor so a coordinator can see why one item sits above another.
+ * The pattern weights, overdue rate/cap and severity cut-offs come from the
+ * place config (Settings screen).
  */
 import type { Severity } from "@/domain/types";
 import type { Candidate } from "./coordinationAgent";
+import { DEFAULT_CONFIG, type PlaceConfig } from "@/config/schema";
 
 export interface ScoreResult {
   score: number;
   severity: Severity;
   breakdown: { factor: string; points: number }[];
 }
-
-const PATTERN_BASE: Record<Candidate["pattern"], number> = {
-  referral_unactioned: 30,
-  referral_ping_pong: 30,
-  package_of_care_delay: 30,
-  discharge_task_dropped: 28,
-  onward_referral_not_made: 24,
-  loop_not_closed: 22,
-  virtual_ward_step_down_stalled: 22,
-  follow_up_missed: 20,
-  cancellation_no_rebook: 20,
-  dna_no_rebook: 18,
-  handover_gap: 18,
-  duplicate_assessment: 10,
-};
 
 function num(v: unknown): number {
   return typeof v === "number" && Number.isFinite(v) ? v : 0;
@@ -34,19 +22,19 @@ function bool(v: unknown): boolean {
   return v === true;
 }
 
-export function score(candidate: Candidate): ScoreResult {
+export function score(candidate: Candidate, cfg: PlaceConfig["scoring"] = DEFAULT_CONFIG.scoring): ScoreResult {
   const s = candidate.signals;
   const breakdown: { factor: string; points: number }[] = [];
   const add = (factor: string, points: number) => {
     if (points !== 0) breakdown.push({ factor, points });
   };
 
-  add(`Failure type — ${candidate.pattern.replace(/_/g, " ")}`, PATTERN_BASE[candidate.pattern]);
+  add(`Failure type — ${candidate.pattern.replace(/_/g, " ")}`, cfg.patternBase[candidate.pattern]);
 
-  // Time overdue: 6 points per day past the expected point, capped at 25.
+  // Time overdue: N points per day past the expected point, capped.
   const overdueHours = num(s.overdueHours) || num(s.loopAgeHours);
   if (overdueHours > 0) {
-    const pts = Math.min(25, Math.round((overdueHours / 24) * 6));
+    const pts = Math.min(cfg.overdueCap, Math.round((overdueHours / 24) * cfg.overduePointsPerDay));
     add(`Overdue by ${Math.round(overdueHours / 24)} day(s)`, pts);
   }
 
@@ -76,6 +64,7 @@ export function score(candidate: Candidate): ScoreResult {
   }
 
   const clamped = Math.max(0, Math.min(100, total));
-  const severity: Severity = clamped >= 65 ? "high" : clamped >= 40 ? "medium" : "low";
+  const severity: Severity =
+    clamped >= cfg.severityHighAt ? "high" : clamped >= cfg.severityMediumAt ? "medium" : "low";
   return { score: clamped, severity, breakdown };
 }

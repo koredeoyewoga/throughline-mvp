@@ -107,6 +107,28 @@ describe("runDetection reconciliation with prior decisions", () => {
     expect(otherIdsAfter).toEqual(otherIdsBefore);
   });
 
+  it("reopens an item that was only auto-closed once its candidate returns", async () => {
+    const state = freshState();
+    state.exceptions = await runDetection(state);
+    const target = state.exceptions.find((e) => e.pattern === "duplicate_assessment")!;
+
+    // Simulate the candidate having disappeared and being system-auto-closed.
+    target.status = "closed";
+    target.decisions.push({
+      id: "d-auto",
+      kind: "close",
+      actor: "system",
+      at: new Date().toISOString(),
+      note: "Auto-closed: the expected step is now satisfied in the source data.",
+    });
+
+    // Next run: the candidate is still present in the data, so it should reopen.
+    state.exceptions = await runDetection(state);
+    const after = state.exceptions.find((e) => e.id === target.id)!;
+    expect(after.status).toBe("open");
+    expect(after.decisions).toHaveLength(0);
+  });
+
   it("does not reopen an item a human already closed", async () => {
     const state = freshState();
     state.exceptions = await runDetection(state);

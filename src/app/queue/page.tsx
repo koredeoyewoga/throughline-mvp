@@ -6,6 +6,7 @@ import { KpiStrip } from "@/components/KpiStrip";
 import { RefreshButton } from "@/components/RefreshButton";
 import { ResetButton } from "@/components/ResetButton";
 import { patternLabel, FAILURE_PATTERNS } from "@/lib/format";
+import { getConfig } from "@/config";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function QueuePage(props: {
 }) {
   const { sev = "all", show = "open" } = await props.searchParams;
   const [all, state] = await Promise.all([listExceptions(), getState()]);
-  const kpis = computeKpis(state);
+  const kpis = computeKpis(state, getConfig().kpi);
 
   const live = all.filter((e) => e.status !== "closed");
   const closed = all.filter((e) => e.status === "closed");
