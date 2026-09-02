@@ -31,6 +31,12 @@ Production build:
 npm run build && npm start
 ```
 
+Tests (Vitest — engine unit tests + a full-pipeline integration test on the seed):
+
+```bash
+npm test
+```
+
 Optional AI explanation layer (off by default — see `.env.example`):
 
 ```bash
