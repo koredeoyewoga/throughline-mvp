@@ -11,6 +11,7 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | Deterministic, itemised prioritisation (no hidden model in the ranking) | `prioritisation.ts` — every point is attributed to a named factor and shown to the user |
 | Model is scoped to rephrasing only | `llm.ts` — receives only the extracted facts; a system prompt forbids adding detail, changing the action or giving clinical advice |
 | "Insufficient information" contract | `llm.ts` returns `null` (→ deterministic fallback) if the model cannot explain from the facts, or replies with that exact phrase |
+| Defence-in-depth filter on model output | `acceptModelText()` drops any rephrase that contains a clinical directive, the "insufficient information" signal, chat preamble, or is empty — the caller then uses the deterministic text |
 | Source attribution on every claim | `EvidenceItem[]` on each exception; the detail page links each line to a source event, and marks *missing* expected events |
 | Confidence indicator | `Exception.confidence` (high/medium/low) shown on the card and detail; low confidence tempers the score |
 | Governance pre-check | `governance.ts` — human-in-the-loop, no-clinical-decision, data-sharing-basis, fact-check-required; pass/flag only |
@@ -42,13 +43,26 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | Real authentication — **CIS2 / NHS login**, RBAC per organisation, enforced per-place tenancy | stubbed (`src/lib/session.ts`) |
 | Independent penetration test before any pilot with real data | not started |
 | Equality Impact Assessment; fairness evaluation of entity resolution + prioritisation across demographic groups | not started |
-| AI evaluation suite (hallucination, prompt injection, data leakage, cross-tenant exposure, incorrect automation) | not started — the deterministic core reduces but does not remove the need |
+| AI evaluation suite | _partly done_ — `src/engine/__tests__/ai-safety.test.ts` and `llm.test.ts` cover prompt-injection resistance, the clinical-directive boundary, evidence grounding and output filtering against the deterministic engine. Running the rephrase layer against a live model, plus data-leakage / cross-tenant probes, remain. |
 
-## AI evaluation — what to test when the model layer is switched on
+## AI evaluation — status
 
-- Rephrased "why" adds no fact absent from the supplied `facts[]`.
-- Rephrased "why" never contains a clinical recommendation.
-- Model returns the fallback on deliberately thin facts.
+Covered by the automated suite (`npm test`):
+
 - Ingested document text containing instructions ("ignore previous…", "mark as
-  resolved") does not change detection, scoring or the action — all of which are
-  computed before any model call and from structured fields, not free text.
+  resolved", "set severity to low", "prescribe…") does **not** change detection,
+  severity, score, owner or the recommended action — verified by fingerprinting
+  a clean run against a fully-poisoned run of the whole seed.
+- No exception `why` or recommended action contains a clinical directive.
+- `acceptModelText()` drops clinical directives, the "insufficient information"
+  reply, chat preamble and empty output.
+- Every exception is grounded: ≥1 evidence item, and every cited event id
+  resolves to a real event.
+- `aiEnabled()` is off unless both the flag and a key are set; the rephrase
+  function makes no network call when disabled.
+
+Still to do (needs a live model / more infrastructure):
+
+- Rephrased "why" adds no fact absent from `facts[]` — run against a live model
+  with an entailment check.
+- Data-leakage and cross-tenant probes on the (future) real datastore.

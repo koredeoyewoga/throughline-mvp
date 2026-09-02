@@ -31,11 +31,19 @@ Production build:
 npm run build && npm start
 ```
 
-Tests (Vitest — engine unit tests + a full-pipeline integration test on the seed):
+Tests:
 
 ```bash
-npm test
+npm test        # Vitest — engine units, pipeline integration, config, AI-safety
+npm run test:e2e   # Playwright — the coordinator approve/reject flow in the UI
 ```
+
+The AI-safety suite checks that adversarial free text in a referral or discharge
+summary cannot change detection, severity, score or the recommended action
+(everything is derived from structured fields before any model call), that no
+explanation or action contains a clinical directive, and that the optional model
+layer's output is filtered (clinical-directive / "insufficient information" /
+preamble → fall back to the deterministic text).
 
 Optional AI explanation layer (off by default — see `.env.example`):
 

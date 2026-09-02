@@ -8,6 +8,12 @@ next-env.d.ts
 # Local coordination state (regenerated from synthetic seed on first run)
 /.data
 
+# Playwright
+/test-results
+/playwright-report
+/blob-report
+/.playwright
+
 # Env
 .env
 .env.local

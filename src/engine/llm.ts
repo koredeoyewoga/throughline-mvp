@@ -30,6 +30,26 @@ export function aiEnabled(): boolean {
   return process.env.THROUGHLINE_AI_EXPLANATIONS === "on" && !!process.env.ANTHROPIC_API_KEY;
 }
 
+/**
+ * Defence-in-depth filter on model output. Even a well-behaved model can drift;
+ * anything that looks like a clinical directive, the "insufficient information"
+ * signal, an empty string, or chat preamble is rejected so the caller falls
+ * back to the deterministic explanation.
+ */
+const CLINICAL_DIRECTIVE =
+  /\b(prescrib\w*|diagnos\w*|titrat\w*|administ\w*|dispens\w*|do not resuscitate|DNR|section (2|3|136)\b|increase the dose|reduce the dose|start (him|her|them|the patient) on|stop (his|her|their|the) [a-z]+ (medication|dose|tablets))\b/i;
+const PREAMBLE = /^(here('| i)s|sure[,.]|certainly[,.]|okay[,.]|i['’]ll |as requested|below is)/i;
+
+export function acceptModelText(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const text = String(raw).trim();
+  if (!text) return null;
+  if (/^insufficient information available\.?$/i.test(text)) return null;
+  if (CLINICAL_DIRECTIVE.test(text)) return null;
+  if (PREAMBLE.test(text)) return null;
+  return text;
+}
+
 export async function rephraseExplanation(input: RephraseInput): Promise<string | null> {
   if (!aiEnabled()) return null;
   const model = process.env.THROUGHLINE_AI_MODEL || "claude-sonnet-5";
@@ -62,11 +82,8 @@ export async function rephraseExplanation(input: RephraseInput): Promise<string 
     });
     if (!res.ok) return null;
     const json = (await res.json()) as { content?: { type: string; text?: string }[] };
-    const text = json.content?.filter((c) => c.type === "text").map((c) => c.text ?? "").join("").trim();
-    if (!text) return null;
-    // Guard: honour the "insufficient information" contract.
-    if (/^insufficient information available\.?$/i.test(text)) return null;
-    return text;
+    const text = json.content?.filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
+    return acceptModelText(text);
   } catch {
     return null;
   }
