@@ -53,6 +53,20 @@ IEC** discharge documents, **PDS/Spine** for identity, **CIS2 / NHS login** for
 auth. `EventType` and `SourceEvent` already carry the fields these map onto
 (patient identity, from/to organisation, pathway, timestamp, document text).
 
+## Task engine
+
+`src/engine/tasks.ts` is pure. Approving a recommendation calls
+`createTaskFromException` (in `store/db.ts`) which dispatches a `Task` to the
+owning team and moves the exception to `in_progress`. `sweepTasks(tasks, now,
+workflowConfig)` runs on every `refreshDetection` and after any task action /
+clock advance — there is no scheduler — bumping overdue tasks up the escalation
+ladder (0 owning team → 1 team lead → 2 place / ICB) and logging the reminder
+notification that *would* be sent. `applyTaskAction` handles assign / status /
+nudge / escalate / note and reports when a task just reached `done`; the store
+then injects the resolving event and re-runs detection, closing the originating
+coordination failure. Task SLA and escalation timings live in
+`PlaceConfig.workflow`.
+
 ## Place configuration
 
 `src/config/` holds a `PlaceConfig` — pathway SLA overrides

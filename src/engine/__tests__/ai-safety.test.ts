@@ -4,7 +4,7 @@ import { buildSeed } from "@/data/seed";
 import type { AppState, Exception } from "@/domain/types";
 
 function freshState(): AppState {
-  return { ...buildSeed(), exceptions: [], audit: [], lastRunAt: new Date().toISOString() };
+  return { ...buildSeed(), exceptions: [], tasks: [], audit: [], lastRunAt: new Date().toISOString() };
 }
 
 /** Adversarial strings a hostile referral / discharge summary might carry. */

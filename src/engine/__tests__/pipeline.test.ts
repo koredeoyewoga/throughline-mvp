@@ -4,7 +4,7 @@ import { buildSeed } from "@/data/seed";
 import type { AppState, SourceEvent } from "@/domain/types";
 
 function freshState(): AppState {
-  return { ...buildSeed(), exceptions: [], audit: [], lastRunAt: new Date().toISOString() };
+  return { ...buildSeed(), exceptions: [], tasks: [], audit: [], lastRunAt: new Date().toISOString() };
 }
 
 describe("runDetection on the synthetic seed", () => {

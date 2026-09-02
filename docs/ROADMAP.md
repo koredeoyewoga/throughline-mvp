@@ -5,13 +5,14 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Near term — harden the slice
 
-- **Tests.** _Done:_ Vitest suite (53 tests) — all twelve detectors (fire /
-  does-not-fire fixtures), the scorer, the config validator + overrides, a
-  full-pipeline integration test on the seed, an **AI-safety suite**
-  (prompt-injection resistance, no clinical directives in output, evidence
-  grounding, model-output filtering), and **Playwright** e2e for the coordinator
-  approve/reject flow. _Still to do:_ run the AI-eval suite against a live model
-  when the rephrase layer is switched on; visual-regression on the queue.
+- **Tests.** _Done:_ Vitest suite (66 tests) — all twelve detectors (fire /
+  does-not-fire fixtures), the scorer, the config validator + overrides, the
+  task engine + escalation ladder, a full-pipeline integration test on the seed,
+  an **AI-safety suite** (prompt-injection resistance, no clinical directives in
+  output, evidence grounding, model-output filtering), and **Playwright** e2e
+  (approve → task → done → close, worklist escalation, reject). _Still to do:_
+  run the AI-eval suite against a live model when the rephrase layer is switched
+  on; visual-regression on the queue.
 - **More patterns.** _Done:_ cancellation not rebooked, package-of-care delay,
   onward referral after discharge not made, virtual-ward step-down not actioned.
 - **Pathway config.** _Done:_ `PlaceConfig` (schema + validator in `src/config/`)
@@ -28,10 +29,14 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Phase 5 — workflow depth
 
-- Real task objects with assignment, reminders and escalation ladders (not just
-  status transitions).
-- SLA tracking per owner; a per-team worklist view.
-- Notifications (email/NHS App messaging) — still human-approved.
+- _Done:_ real `Task` objects dispatched on approve, with an assignee, a task
+  SLA, an escalation ladder (owning team → team lead → place / ICB) evaluated on
+  read, an append-only activity log, and per-team grouping on `/worklist`.
+  Marking a task done closes the source coordination failure. Task SLA and
+  escalation timings are in `PlaceConfig`. `sweepTasks` is pure and unit-tested.
+- _Still to do:_ per-function task SLAs (single value today); real notifications
+  (email / NHS App messaging) in place of the logged "would send" reminders,
+  still human-approved; a "my tasks" view once there is real auth; bulk actions.
 
 ## Phase 6–7 — web + PWA
 

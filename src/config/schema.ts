@@ -34,6 +34,14 @@ export interface PlaceConfig {
     coordinatorHoursPerResolvedItem: number;
     shareOfDelayAvoided: number;
   };
+  workflow: {
+    /** Hours a dispatched task has to reach "done". */
+    taskSlaHours: number;
+    /** Hours past due before the task auto-escalates to a team lead. */
+    escalateToLevel1AfterHours: number;
+    /** Hours past due before it auto-escalates to place / ICB. */
+    escalateToLevel2AfterHours: number;
+  };
 }
 
 export const DEFAULT_CONFIG: PlaceConfig = {
@@ -72,6 +80,11 @@ export const DEFAULT_CONFIG: PlaceConfig = {
     coordinatorHoursPerResolvedItem: 0.5,
     shareOfDelayAvoided: 0.5,
   },
+  workflow: {
+    taskSlaHours: 24,
+    escalateToLevel1AfterHours: 12,
+    escalateToLevel2AfterHours: 36,
+  },
 };
 
 const FAILURE_PATTERNS = Object.keys(DEFAULT_CONFIG.scoring.patternBase) as FailurePattern[];
@@ -97,6 +110,12 @@ const SCORING_RULES: Record<Exclude<keyof PlaceConfig["scoring"], "patternBase">
   overdueCap: { min: 0, max: 60 },
   severityHighAt: { min: 1, max: 100, integer: true },
   severityMediumAt: { min: 0, max: 99, integer: true },
+};
+
+const WORKFLOW_RULES: Record<keyof PlaceConfig["workflow"], NumRule> = {
+  taskSlaHours: { min: 1, max: 720 },
+  escalateToLevel1AfterHours: { min: 0, max: 336 },
+  escalateToLevel2AfterHours: { min: 1, max: 720 },
 };
 
 function coerceNumber(
@@ -147,6 +166,19 @@ export function validateConfig(raw: unknown): { config: PlaceConfig; errors: str
     errors.push("scoring.severityMediumAt must be below severityHighAt — reset both to defaults");
     out.scoring.severityHighAt = DEFAULT_CONFIG.scoring.severityHighAt;
     out.scoring.severityMediumAt = DEFAULT_CONFIG.scoring.severityMediumAt;
+  }
+
+  // workflow
+  const w = (input.workflow ?? {}) as Record<string, unknown>;
+  for (const key of Object.keys(WORKFLOW_RULES) as (keyof PlaceConfig["workflow"])[]) {
+    if (key in w) {
+      out.workflow[key] = coerceNumber(w[key], WORKFLOW_RULES[key], DEFAULT_CONFIG.workflow[key], `workflow.${key}`, errors);
+    }
+  }
+  if (out.workflow.escalateToLevel1AfterHours >= out.workflow.escalateToLevel2AfterHours) {
+    errors.push("workflow.escalateToLevel1AfterHours must be below escalateToLevel2AfterHours — reset both to defaults");
+    out.workflow.escalateToLevel1AfterHours = DEFAULT_CONFIG.workflow.escalateToLevel1AfterHours;
+    out.workflow.escalateToLevel2AfterHours = DEFAULT_CONFIG.workflow.escalateToLevel2AfterHours;
   }
 
   // pattern base weights

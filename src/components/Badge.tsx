@@ -1,5 +1,5 @@
-import type { Severity, ExceptionStatus } from "@/domain/types";
-import { statusLabel } from "@/lib/format";
+import type { Severity, ExceptionStatus, TaskStatus } from "@/domain/types";
+import { statusLabel, escalationLabel } from "@/lib/format";
 
 const SEV: Record<Severity, string> = {
   high: "bg-amber text-white",
@@ -28,4 +28,29 @@ export function ConfidenceBadge({ confidence }: { confidence: "high" | "medium" 
       Confidence: {confidence}
     </span>
   );
+}
+
+const TASK_STATUS: Record<TaskStatus, string> = {
+  open: "bg-teal-soft text-teal",
+  in_progress: "bg-teal-soft text-teal",
+  blocked: "bg-amber-soft text-amber",
+  done: "bg-mist text-slate-muted",
+  cancelled: "bg-mist text-slate-muted",
+};
+
+export function TaskStatusBadge({ status }: { status: TaskStatus }) {
+  return <span className={`pill ${TASK_STATUS[status]}`}>{statusLabel(status)}</span>;
+}
+
+export function EscalationBadge({ level }: { level: 0 | 1 | 2 }) {
+  if (level === 0) return null;
+  return (
+    <span className={`pill ${level === 2 ? "bg-amber text-white" : "bg-amber-soft text-amber"}`}>
+      Escalated · {escalationLabel(level)}
+    </span>
+  );
+}
+
+export function OverdueBadge() {
+  return <span className="pill bg-amber text-white">Overdue</span>;
 }

@@ -6,7 +6,7 @@ import { pathwayByKey, getPathways } from "@/domain/pathways";
 import { EvidenceList } from "@/components/EvidenceList";
 import { DecisionPanel } from "@/components/DecisionPanel";
 import { SeverityBadge, StatusBadge, ConfidenceBadge } from "@/components/Badge";
-import { patternLabel, realSince, sinceNow } from "@/lib/format";
+import { patternLabel, realSince, sinceNow, escalationLabel } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +27,8 @@ export default async function ExceptionPage(props: { params: Promise<{ id: strin
   const pathwayStates = buildPathwayStates(state.patients, state.events, state.now, getPathways()).filter(
     (ps) => ps.patientId === patient.id,
   );
+
+  const task = (state.tasks ?? []).find((t) => t.exceptionId === exception.id && t.status !== "cancelled");
 
   return (
     <div className="space-y-6">
@@ -134,6 +136,21 @@ export default async function ExceptionPage(props: { params: Promise<{ id: strin
               </div>
             </dl>
           </section>
+
+          {task && (
+            <section className="card border-teal-soft p-4">
+              <h2 className="text-sm font-bold text-ink">Task dispatched</h2>
+              <p className="mt-2 text-sm text-slate">
+                Sent to <span className="font-medium text-ink">{task.owner.label}</span>
+                {task.assignee ? ` · ${task.assignee}` : " · team inbox"} ·{" "}
+                <span className="font-medium text-ink">{task.status.replace("_", " ")}</span>
+                {task.escalationLevel > 0 ? ` · escalated (${escalationLabel(task.escalationLevel)})` : ""}.
+              </p>
+              <Link href={`/worklist/${task.id}`} className="btn-secondary mt-3">
+                Open the task
+              </Link>
+            </section>
+          )}
 
           <section className="card p-4">
             <h2 className="text-sm font-bold text-ink">Your decision</h2>

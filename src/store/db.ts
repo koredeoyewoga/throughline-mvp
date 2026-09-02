@@ -20,8 +20,17 @@ import type {
   SourceEvent,
   EventType,
 } from "@/domain/types";
+import type { Task } from "@/domain/types";
 import { buildSeed } from "@/data/seed";
 import { runDetection } from "@/engine/run";
+import { getConfig } from "@/config";
+import {
+  createTaskFromException,
+  sweepTasks,
+  applyTaskAction,
+  taskSlaHours,
+  type TaskActionKind,
+} from "@/engine/tasks";
 
 const DATA_DIR = path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "state.json");
@@ -33,19 +42,64 @@ function persist(state: AppState): void {
   fs.writeFileSync(FILE, JSON.stringify(state, null, 2), "utf8");
 }
 
+const HOUR = 3600 * 1000;
+
 async function freshState(): Promise<AppState> {
   const seed = buildSeed();
   const base: AppState = {
     ...seed,
     exceptions: [],
+    tasks: [],
     audit: [],
     lastRunAt: new Date().toISOString(),
   };
   base.exceptions = await runDetection(base);
+  seedTasks(base);
   base.audit = [auditEntry("system", "Ran coordination detection on the synthetic dataset", "detection", {
     exceptionsFound: base.exceptions.length,
+    tasksSeeded: base.tasks.length,
   })];
   return base;
+}
+
+/**
+ * Seed a few in-flight tasks so the worklist is not empty on a fresh demo:
+ * one already auto-escalated, one nearing its SLA, one just dispatched.
+ */
+function seedTasks(state: AppState): void {
+  const wf = getConfig().workflow;
+  const now = Date.now();
+  const plan: { pattern: string; ageHours: number; assignee?: string; status?: Task["status"] }[] = [
+    { pattern: "referral_unactioned", ageHours: 40, assignee: "R. Odele (rehab intake)", status: "in_progress" },
+    { pattern: "discharge_task_dropped", ageHours: 16 },
+    { pattern: "follow_up_missed", ageHours: 3, assignee: "J. Marsh (NT4)" },
+  ];
+  for (const p of plan) {
+    const ex = state.exceptions.find((e) => e.pattern === p.pattern);
+    if (!ex) continue;
+    const createdAt = new Date(now - p.ageHours * HOUR).toISOString();
+    const task = createTaskFromException(ex, {
+      id: `task-seed-${ex.id}`,
+      now: createdAt,
+      actor: "Care coordinator (demo)",
+      slaHours: taskSlaHours(ex.owner.functionArea, wf),
+    });
+    if (p.assignee) {
+      task.assignee = p.assignee;
+      task.activity.push({
+        id: `act-${createdAt}-assigned-seed`,
+        at: new Date(now - (p.ageHours - 1) * HOUR).toISOString(),
+        actor: "Care coordinator (demo)",
+        kind: "assigned",
+        detail: `Assigned to ${p.assignee}`,
+      });
+    }
+    if (p.status) task.status = p.status;
+    state.tasks.push(task);
+    ex.status = "in_progress";
+  }
+  const swept = sweepTasks(state.tasks, new Date().toISOString(), wf);
+  state.tasks = swept.tasks;
 }
 
 export async function getState(): Promise<AppState> {
@@ -74,10 +128,31 @@ export async function resetState(): Promise<AppState> {
 export async function refreshDetection(actor = "system"): Promise<AppState> {
   const state = await getState();
   state.exceptions = await runDetection(state);
+  const swept = sweepTasks(state.tasks ?? [], new Date().toISOString(), getConfig().workflow);
+  state.tasks = swept.tasks;
   state.lastRunAt = new Date().toISOString();
   state.audit.unshift(auditEntry(actor, "Re-ran coordination detection", "detection", {
     exceptions: state.exceptions.length,
+    tasksEscalated: swept.changed,
   }));
+  persist(state);
+  return state;
+}
+
+/** Dev helper: pull every task's clock back so escalation can be shown live. */
+export async function advanceTaskClock(hours: number, actor = "system"): Promise<AppState> {
+  const state = await getState();
+  const shift = Math.max(1, Math.min(240, Math.round(hours))) * HOUR;
+  state.tasks = (state.tasks ?? []).map((t) => ({
+    ...t,
+    createdAt: new Date(Date.parse(t.createdAt) - shift).toISOString(),
+    dueAt: new Date(Date.parse(t.dueAt) - shift).toISOString(),
+  }));
+  const swept = sweepTasks(state.tasks, new Date().toISOString(), getConfig().workflow);
+  state.tasks = swept.tasks;
+  state.audit.unshift(
+    auditEntry(actor, `Advanced the task clock by ${Math.round(hours)}h`, "tasks", { tasksEscalated: swept.changed }),
+  );
   persist(state);
   return state;
 }
@@ -90,6 +165,14 @@ export async function listExceptions(): Promise<Exception[]> {
 
 export async function getException(id: string): Promise<Exception | undefined> {
   return (await getState()).exceptions.find((e) => e.id === id);
+}
+
+export async function listTasks(): Promise<Task[]> {
+  return (await getState()).tasks ?? [];
+}
+
+export async function getTask(id: string): Promise<Task | undefined> {
+  return (await getState()).tasks?.find((t) => t.id === id);
 }
 
 export async function listAudit(): Promise<AuditEntry[]> {
@@ -177,12 +260,30 @@ export async function recordDecision(
   exception.decisions.push(decision);
   exception.updatedAt = decision.at;
 
+  let dispatchedTaskId: string | null = null;
+
   switch (input.kind) {
     case "approve":
-    case "modify":
+    case "modify": {
       exception.status = "in_progress";
-      applyResolvingEvent(state, exception, input.kind === "modify" ? input.amendedAction : undefined);
+      // Dispatch the work to the owning team as a tracked task. The exception
+      // closes when that task is marked done (see actOnTask).
+      const existing = (state.tasks ?? []).find((t) => t.exceptionId === exception.id && t.status !== "cancelled");
+      if (!existing) {
+        const task = createTaskFromException(exception, {
+          id: `task-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+          now: decision.at,
+          actor: input.actor,
+          slaHours: taskSlaHours(exception.owner.functionArea, getConfig().workflow),
+          detail: input.kind === "modify" ? input.amendedAction : undefined,
+        });
+        state.tasks = [...(state.tasks ?? []), task];
+        dispatchedTaskId = task.id;
+      } else {
+        dispatchedTaskId = existing.id;
+      }
       break;
+    }
     case "escalate":
       exception.status = "escalated";
       break;
@@ -201,20 +302,52 @@ export async function recordDecision(
       humanDecision: input.kind,
       note: input.note ?? null,
       amendedAction: input.amendedAction ?? null,
+      taskDispatched: dispatchedTaskId,
     }),
   );
 
   persist(state);
 
-  // Re-run detection so an approved fix visibly closes the loop.
-  if (input.kind === "approve" || input.kind === "modify") {
-    state.exceptions = await runDetection(state);
-    state.lastRunAt = new Date().toISOString();
-    persist(state);
-  }
-
   const updated = state.exceptions.find((e) => e.id === exceptionId) ?? exception;
   return { state, exception: updated };
+}
+
+export async function actOnTask(
+  taskId: string,
+  input: { kind: TaskActionKind; actor: string; value?: string; note?: string },
+): Promise<{ state: AppState; task: Task } | null> {
+  const state = await getState();
+  const idx = (state.tasks ?? []).findIndex((t) => t.id === taskId);
+  if (idx < 0) return null;
+
+  const now = new Date().toISOString();
+  const { task, completed } = applyTaskAction(state.tasks[idx], { ...input, now });
+  state.tasks = state.tasks.map((t, i) => (i === idx ? task : t));
+
+  state.audit.unshift(
+    auditEntry(input.actor, `Task ${input.kind}: "${task.title}"`, `task:${task.id}`, {
+      patient: task.patientId,
+      exception: task.exceptionId,
+      status: task.status,
+      assignee: task.assignee ?? null,
+      escalationLevel: task.escalationLevel,
+      note: input.note ?? null,
+    }),
+  );
+
+  // Completing the task feeds the resolving update back to the source data, which
+  // closes the originating coordination failure on the next detection run.
+  if (completed) {
+    const exception = state.exceptions.find((e) => e.id === task.exceptionId);
+    if (exception) applyResolvingEvent(state, exception, undefined);
+    persist(state);
+    state.exceptions = await runDetection(state);
+    state.lastRunAt = now;
+  }
+
+  persist(state);
+  const updated = state.tasks.find((t) => t.id === taskId) ?? task;
+  return { state, task: updated };
 }
 
 function applyResolvingEvent(state: AppState, exception: Exception, amendedAction?: string): void {

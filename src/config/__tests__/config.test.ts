@@ -36,6 +36,21 @@ describe("validateConfig", () => {
     expect((config.scoring.patternBase as Record<string, number>).not_a_pattern).toBeUndefined();
   });
 
+  it("resets the escalation thresholds if level 1 is not below level 2", () => {
+    const { config, errors } = validateConfig({
+      workflow: { escalateToLevel1AfterHours: 50, escalateToLevel2AfterHours: 20 },
+    });
+    expect(config.workflow.escalateToLevel1AfterHours).toBe(DEFAULT_CONFIG.workflow.escalateToLevel1AfterHours);
+    expect(config.workflow.escalateToLevel2AfterHours).toBe(DEFAULT_CONFIG.workflow.escalateToLevel2AfterHours);
+    expect(errors.some((e) => /escalateToLevel1AfterHours/.test(e))).toBe(true);
+  });
+
+  it("clamps the task SLA to its allowed range", () => {
+    const { config, errors } = validateConfig({ workflow: { taskSlaHours: 5000 } });
+    expect(config.workflow.taskSlaHours).toBe(720);
+    expect(errors.some((e) => /taskSlaHours/.test(e))).toBe(true);
+  });
+
   it("keeps valid SLA overrides and drops malformed keys", () => {
     const { config, errors } = validateConfig({
       pathwaySlaOverrides: { "discharge:frailty/referral_accepted": 96, "bad key!!": 10 },

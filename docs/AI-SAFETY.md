@@ -23,6 +23,7 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | Tenancy shape | every entity carries `placeId`; the query layer is place-scoped by construction |
 | Config changes are constrained + logged | `validateConfig` clamps every knob to a safe range; a save writes an audit entry and re-runs detection so the effect is visible and attributable |
 | No autonomous change to a clinical record | resolving events are labelled "recorded via Throughline after coordinator action" and live only in this system's state |
+| Reminders / escalations are logged, not sent | task nudges and auto-escalation write a `reminder` activity describing the notification that *would* be sent — no message leaves the system in the MVP; real notifications are a Phase 5 add, still human-approved |
 
 ## Out of scope for the MVP (by design)
 

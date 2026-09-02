@@ -220,6 +220,51 @@ export interface GovernanceCheck {
   detail: string;
 }
 
+// --- Tasks: the work an approved recommendation dispatches --------------
+
+export type TaskStatus = "open" | "in_progress" | "blocked" | "done" | "cancelled";
+
+export type TaskActivityKind =
+  | "created"
+  | "assigned"
+  | "status"
+  | "nudge" // a chase / reminder to the owning team
+  | "escalate"
+  | "note"
+  | "reminder"; // a notification the system would send (human-approved in production)
+
+export interface TaskActivity {
+  id: string;
+  at: string;
+  actor: string;
+  kind: TaskActivityKind;
+  detail: string;
+}
+
+export interface Task {
+  id: string;
+  /** The coordination failure this task was dispatched from. */
+  exceptionId: string;
+  patientId: string;
+  placeId: string;
+  pattern: FailurePattern;
+  title: string;
+  /** The action to carry out — the exception's recommended action, or the coordinator's amendment. */
+  detail: string;
+  owner: { functionArea: Team["functionArea"]; orgId: string; label: string };
+  /** Named person, or undefined for the team inbox. */
+  assignee?: string;
+  status: TaskStatus;
+  priority: Severity;
+  createdAt: string;
+  createdBy: string;
+  /** createdAt + the SLA hours for this owning function. */
+  dueAt: string;
+  /** 0 = with the owning team · 1 = team lead · 2 = place / ICB. */
+  escalationLevel: 0 | 1 | 2;
+  activity: TaskActivity[];
+}
+
 // --- Audit --------------------------------------------------------------
 
 export interface AuditEntry {
@@ -264,6 +309,7 @@ export interface WorldSeed {
 
 export interface AppState extends WorldSeed {
   exceptions: Exception[];
+  tasks: Task[];
   audit: AuditEntry[];
   /** When detection was last run. */
   lastRunAt: string;

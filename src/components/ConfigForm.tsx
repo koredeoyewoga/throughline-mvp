@@ -31,6 +31,12 @@ const SCORING_LABELS: Record<Exclude<keyof PlaceConfig["scoring"], "patternBase"
   severityMediumAt: "Score at or above this is MEDIUM",
 };
 
+const WORKFLOW_LABELS: Record<keyof PlaceConfig["workflow"], string> = {
+  taskSlaHours: "Hours a dispatched task has to reach 'done'",
+  escalateToLevel1AfterHours: "Hours past due before auto-escalating to a team lead",
+  escalateToLevel2AfterHours: "Hours past due before auto-escalating to place / ICB",
+};
+
 function Num({
   value,
   onChange,
@@ -82,6 +88,9 @@ export function ConfigForm({
   }
   function setKpi(k: keyof PlaceConfig["kpi"], n: number) {
     setDraft((d) => ({ ...d, kpi: { ...d.kpi, [k]: n } }));
+  }
+  function setWorkflow(k: keyof PlaceConfig["workflow"], n: number) {
+    setDraft((d) => ({ ...d, workflow: { ...d.workflow, [k]: n } }));
   }
   function setSla(key: string, n: number) {
     setDraft((d) => ({ ...d, pathwaySlaOverrides: { ...d.pathwaySlaOverrides, [key]: n } }));
@@ -261,6 +270,27 @@ export function ConfigForm({
               hint={`default ${defaults.kpi.shareOfDelayAvoided}`}
             />
           </li>
+        </ul>
+      </section>
+
+      {/* Workflow */}
+      <section className="card p-4">
+        <h2 className="text-sm font-bold text-ink">Task workflow &amp; escalation</h2>
+        <p className="mt-1 text-xs text-slate-muted">
+          When a coordinator approves a recommendation a task is dispatched to the owning team. These control its SLA
+          and when it auto-escalates up the ladder (owning team → team lead → place / ICB).
+        </p>
+        <ul className="mt-3 space-y-3">
+          {(Object.keys(WORKFLOW_LABELS) as (keyof PlaceConfig["workflow"])[]).map((k) => (
+            <li key={k} className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm text-ink">{WORKFLOW_LABELS[k]}</span>
+              <Num
+                value={draft.workflow[k]}
+                onChange={(n) => setWorkflow(k, n)}
+                hint={`default ${defaults.workflow[k]}`}
+              />
+            </li>
+          ))}
         </ul>
       </section>
     </div>

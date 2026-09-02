@@ -63,6 +63,31 @@ export function statusLabel(status: string): string {
     in_progress: "In progress",
     escalated: "Escalated",
     closed: "Closed",
+    blocked: "Blocked",
+    done: "Done",
+    cancelled: "Cancelled",
   };
   return map[status] ?? status;
+}
+
+export const FUNCTION_LABELS: Record<string, string> = {
+  discharge_hub: "Discharge hub",
+  transfer_of_care: "Transfer of care",
+  neighbourhood_team: "Neighbourhood team",
+  single_point_of_access: "Single point of access",
+  district_nursing: "District nursing",
+  therapies: "Community rehab / therapies",
+  social_work: "Social work",
+  gp_practice: "GP practice",
+  mental_health: "Mental health",
+  voluntary: "Voluntary sector",
+  virtual_ward: "Virtual ward",
+};
+
+export function functionLabel(fn: string): string {
+  return FUNCTION_LABELS[fn] ?? fn;
+}
+
+export function escalationLabel(level: number): string {
+  return ["With the team", "Team lead", "Place / ICB"][level] ?? `Level ${level}`;
 }

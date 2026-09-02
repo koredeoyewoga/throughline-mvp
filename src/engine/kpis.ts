@@ -24,6 +24,12 @@ function firstHumanDecisionHours(ex: Exception): number | null {
 
 export function computeKpis(state: AppState, kpiCfg: PlaceConfig["kpi"] = DEFAULT_CONFIG.kpi): Kpi[] {
   const ex = state.exceptions;
+  const tasks = state.tasks ?? [];
+  const nowMs = Date.now();
+  const tasksInFlight = tasks.filter((t) => t.status === "open" || t.status === "in_progress" || t.status === "blocked");
+  const tasksOverdue = tasksInFlight.filter((t) => nowMs > Date.parse(t.dueAt));
+  const tasksEscalated = tasksInFlight.filter((t) => t.escalationLevel > 0);
+  const tasksDone = tasks.filter((t) => t.status === "done");
   const open = ex.filter((e) => e.status === "open" || e.status === "in_progress" || e.status === "escalated");
   const closed = ex.filter((e) => e.status === "closed");
   const actioned = ex.filter((e) => e.decisions.some((d) => d.actor !== "system" && (d.kind === "approve" || d.kind === "modify")));
@@ -82,6 +88,20 @@ export function computeKpis(state: AppState, kpiCfg: PlaceConfig["kpi"] = DEFAUL
       value: `~${Math.round(delayDaysAtSurface * kpiCfg.shareOfDelayAvoided)}`,
       basis: "estimated",
       note: `Assumption: ${kpiCfg.shareOfDelayAvoided * 100}% of the days an item was overdue at the point of resolution would have continued to accrue without earlier detection. Illustrative.`,
+    },
+    {
+      key: "tasks_in_flight",
+      label: "Tasks in flight",
+      value: String(tasksInFlight.length),
+      basis: "measured",
+      note: `Dispatched tasks that are open, in progress or blocked. ${tasksDone.length} completed.`,
+    },
+    {
+      key: "tasks_overdue",
+      label: "Tasks overdue / escalated",
+      value: `${tasksOverdue.length} / ${tasksEscalated.length}`,
+      basis: "measured",
+      note: "In-flight tasks past their SLA, and those that have been escalated up the ladder.",
     },
     {
       key: "duplication",

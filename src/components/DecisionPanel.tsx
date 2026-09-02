@@ -96,8 +96,8 @@ export function DecisionPanel({
         ))}
       </div>
       <p className="text-xs text-slate-muted">
-        Nothing is sent automatically. Approving records your decision and simulates the resolving update flowing back
-        from the owning team, so the loop closes.
+        Nothing is sent automatically. Approving (or amending) dispatches a tracked task to the owning team on the{" "}
+        <span className="font-medium">Worklist</span>; the coordination failure closes when that task is marked done.
       </p>
     </div>
   );

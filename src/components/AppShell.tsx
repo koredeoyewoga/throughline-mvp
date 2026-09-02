@@ -4,6 +4,7 @@ import { RoleSwitch } from "./RoleSwitch";
 
 const NAV = [
   { href: "/queue", label: "Attention queue" },
+  { href: "/worklist", label: "Worklist" },
   { href: "/kpis", label: "Impact" },
   { href: "/audit", label: "Audit" },
   { href: "/settings", label: "Settings" },

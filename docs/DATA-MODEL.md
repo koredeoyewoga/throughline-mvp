@@ -55,18 +55,29 @@ detected directly from events rather than a pathway definition.)
 
 **AuditEntry**: `at`, `actor`, `action`, `target`, `context?` — decision
 entries carry `aiIdentified`, `aiRecommended`, `humanDecision`, `note`,
-`amendedAction`.
+`amendedAction`, `taskDispatched`.
+
+## Derived: the task
+
+**Task**: `id`, `exceptionId`, `patientId`, `placeId`, `pattern`, `title`
+(imperative), `detail` (the recommended action, or the coordinator's amendment),
+`owner`, `assignee?`, `status` (open · in_progress · blocked · done · cancelled),
+`priority`, `createdAt` / `createdBy`, `dueAt` (createdAt + the task SLA),
+`escalationLevel` (0 owning team · 1 team lead · 2 place / ICB), `activity[]`.
+
+**TaskActivity**: `at`, `actor`, `kind` (created · assigned · status · nudge ·
+escalate · note · reminder), `detail`. Append-only.
 
 ## Persisted state
 
 `AppState` = the `WorldSeed` (now, places, orgs, teams, patients, events) plus
-`exceptions[]`, `audit[]`, `lastRunAt`. Written to `.data/state.json`.
+`exceptions[]`, `tasks[]`, `audit[]`, `lastRunAt`. Written to `.data/state.json`.
 
 **PlaceConfig** (`src/config/schema.ts`) is separate from `AppState`: `version`,
 `pathwaySlaOverrides` (`"<pathwayKey>/<stepKey>" -> hours`), `thresholds`,
 `scoring` (`patternBase` per pattern + overdue rate/cap + severity cut-offs),
-`kpi`. Written to `.data/config.json`; `validateConfig` clamps and reports
-rather than throwing.
+`kpi`, `workflow` (task SLA + the two escalation thresholds). Written to
+`.data/config.json`; `validateConfig` clamps and reports rather than throwing.
 
 ## Data quality / validation notes
 
