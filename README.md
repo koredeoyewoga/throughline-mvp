@@ -34,8 +34,8 @@ npm run build && npm start
 Tests:
 
 ```bash
-npm test        # Vitest — engine units, pipeline integration, config, tasks, AI-safety (66)
-npm run test:e2e   # Playwright — approve → task → done → close, worklist escalation, reject (3)
+npm test        # Vitest — engine, pipeline, config, tasks, offline queue, AI-safety (75)
+npm run test:e2e   # Playwright — approve → task → done → close, escalation, reject, offline sync (4)
 ```
 
 The AI-safety suite checks that adversarial free text in a referral or discharge
@@ -107,6 +107,23 @@ sent. The worklist groups tasks by team, filters by status / "overdue only", and
 has a dev "Advance clock 12h" control so SLA breaches and escalation can be shown
 live.
 
+### Installable & offline-tolerant (PWA)
+
+Throughline installs to a phone or desktop home screen (web app manifest +
+service worker). For field use on a ward with patchy wifi:
+
+- The last-visited pages, the app shell and an `/offline` fallback are cached, so
+  the queue and worklist still open when the connection drops.
+- **Any decision or task action taken while offline is held in the browser** (an
+  "Held N actions" indicator shows) and **replayed automatically on reconnect** —
+  the coordinator's judgement is never lost. The replay path is the same audited
+  API call; nothing is applied without the human having made the decision.
+
+The offline write-queue is app code (`src/lib/offline-queue.ts` +
+`submitAction`) and is covered by unit and Playwright tests. The service worker's
+read-caching needs a normal browser context to exercise (it is disabled in dev
+and in the e2e run).
+
 ### The closed loop
 
 Marking a task **done** feeds the resolving update back to the source data, so
@@ -148,6 +165,8 @@ config; there is a separate "Reset all to defaults" on the Settings screen.
 src/
   domain/        types + pathway definitions (defaults; SLAs are config-overridable)
   engine/tasks   task engine — dispatch, escalation ladder, activity log (pure)
+  lib/offline-*  offline write-queue (IndexedDB) + submitAction fetch-or-queue
+  app/manifest   web app manifest · public/sw.js — read/shell caching (prod only)
   config/        PlaceConfig schema + validator, SLA/threshold/scoring overrides
   data/          synthetic world: organisations, patients, events, seed
   engine/

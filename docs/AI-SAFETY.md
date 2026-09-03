@@ -24,6 +24,7 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | Config changes are constrained + logged | `validateConfig` clamps every knob to a safe range; a save writes an audit entry and re-runs detection so the effect is visible and attributable |
 | No autonomous change to a clinical record | resolving events are labelled "recorded via Throughline after coordinator action" and live only in this system's state |
 | Reminders / escalations are logged, not sent | task nudges and auto-escalation write a `reminder` activity describing the notification that *would* be sent — no message leaves the system in the MVP; real notifications are a Phase 5 add, still human-approved |
+| Offline actions are held, not inferred | a decision/task action taken offline is queued locally and replayed through the same audited API on reconnect — it is applied only because the human made the decision; a queued action that returns a 4xx on replay is dropped, not retried blindly |
 
 ## Out of scope for the MVP (by design)
 

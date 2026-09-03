@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { DecisionKind, ExceptionStatus } from "@/domain/types";
+import { submitAction } from "@/lib/submitAction";
 
 const ACTIONS: { kind: DecisionKind; label: string; className: string; needsNote?: boolean }[] = [
   { kind: "approve", label: "Approve recommended action", className: "btn-primary" },
@@ -27,30 +28,33 @@ export function DecisionPanel({
   const [amended, setAmended] = useState(recommendedAction);
   const [error, setError] = useState<string | null>(null);
 
+  const [queued, setQueued] = useState(false);
   const closed = status === "closed";
 
   function submit(kind: DecisionKind, needsNote?: boolean) {
     setError(null);
+    setQueued(false);
     if (needsNote && !note.trim() && kind !== "modify") {
       setError("Add a short note explaining your decision.");
       return;
     }
     start(async () => {
-      const res = await fetch(`/api/exceptions/${exceptionId}/decision`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
+      const res = await submitAction(
+        `/api/exceptions/${exceptionId}/decision`,
+        {
           kind,
           note: note.trim() || undefined,
           amendedAction: kind === "modify" ? amended.trim() : undefined,
-        }),
-      });
+        },
+        `${kind} — this item`,
+      );
       if (!res.ok) {
         setError("Something went wrong recording that decision.");
         return;
       }
       setNote("");
-      router.refresh();
+      if (res.queued) setQueued(true);
+      else router.refresh();
     });
   }
 
@@ -83,6 +87,11 @@ export function DecisionPanel({
         />
       </label>
       {error && <p className="text-sm font-medium text-amber">{error}</p>}
+      {queued && (
+        <p className="rounded-lg bg-amber-soft/60 p-2 text-sm text-ink">
+          You&rsquo;re offline — this decision is held and will sync automatically when you reconnect.
+        </p>
+      )}
       <div className="flex flex-wrap gap-2">
         {ACTIONS.map((a) => (
           <button

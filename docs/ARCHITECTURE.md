@@ -53,6 +53,24 @@ IEC** discharge documents, **PDS/Spine** for identity, **CIS2 / NHS login** for
 auth. `EventType` and `SourceEvent` already carry the fields these map onto
 (patient identity, from/to organisation, pathway, timestamp, document text).
 
+## Offline / PWA
+
+`app/manifest.ts` serves the web app manifest; `public/sw.js` is a small
+service worker (network-first navigations with a cached fallback then `/offline`,
+cache-first for build assets, network-first for `/api` GETs). `PwaProvider`
+(client, in the root layout) registers the SW **in production only**, tracks
+`online`/`offline`, and drives the write-queue.
+
+`src/lib/offline-queue.ts` is an IndexedDB queue (in-memory fallback for
+SSR/tests) of `{url, method, body, label, at}`. `src/lib/submitAction.ts`
+wraps a mutation POST: it always attempts the request (never trusting
+`navigator.onLine`), and on failure — or a 5xx — writes the action to the queue
+and fires `throughline:queued`. On the next `online` event `PwaProvider` calls
+`drainPending`, which replays each queued action oldest-first through the normal
+API (so it is validated and audited exactly as a live action), dropping only
+4xx responses that cannot recover. `DecisionPanel` and `TaskActions` use
+`submitAction`; both show a "held — will sync" note when queued.
+
 ## Task engine
 
 `src/engine/tasks.ts` is pure. Approving a recommendation calls

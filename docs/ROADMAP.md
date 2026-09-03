@@ -40,8 +40,14 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Phase 6–7 — web + PWA
 
-- Installable PWA with an offline-tolerant queue for ward/community use.
-- Dedicated mobile approval + handover flows.
+- _Done:_ web app manifest + service worker (installable; read/shell caching in
+  production), an offline **write-queue** — decisions and task actions taken
+  offline are held in IndexedDB and replayed on reconnect via the same audited
+  API — with an "Held N actions" indicator and auto-sync (`PwaProvider`),
+  an `/offline` fallback, and a mobile-friendly nav (scrolls, wraps).
+- _Still to do:_ verify SW read-caching in a real browser / add a Lighthouse PWA
+  check to CI; a compact mobile "focus mode" for triage; background-sync so the
+  replay survives the tab being closed.
 
 ## Phase 8 — integrations
 

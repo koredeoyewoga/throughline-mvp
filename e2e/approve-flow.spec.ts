@@ -47,7 +47,7 @@ test("approve → task dispatched → task done → coordination failure closes"
 test("the worklist opens with seeded tasks and shows escalation", async ({ page, request }) => {
   await page.goto("/worklist");
   await expect(page.getByRole("heading", { name: "Worklist" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Chase & escalate the community referral/ })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Re-book the stalled first visit/ })).toBeVisible();
 
   // Advance the clock — an overdue task climbs the escalation ladder.
   await request.post("/api/tasks/advance", { data: { hours: 12 } });

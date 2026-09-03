@@ -69,10 +69,12 @@ async function freshState(): Promise<AppState> {
 function seedTasks(state: AppState): void {
   const wf = getConfig().workflow;
   const now = Date.now();
+  // Seed from mid/lower queue items so the headline failures stay freshly
+  // actionable in a demo while the worklist is still populated.
   const plan: { pattern: string; ageHours: number; assignee?: string; status?: Task["status"] }[] = [
-    { pattern: "referral_unactioned", ageHours: 40, assignee: "R. Odele (rehab intake)", status: "in_progress" },
-    { pattern: "discharge_task_dropped", ageHours: 16 },
-    { pattern: "follow_up_missed", ageHours: 3, assignee: "J. Marsh (NT4)" },
+    { pattern: "loop_not_closed", ageHours: 40, assignee: "R. Odele (rehab scheduling)", status: "in_progress" },
+    { pattern: "dna_no_rebook", ageHours: 16 },
+    { pattern: "handover_gap", ageHours: 3, assignee: "J. Marsh (CMHT liaison)" },
   ];
   for (const p of plan) {
     const ex = state.exceptions.find((e) => e.pattern === p.pattern);

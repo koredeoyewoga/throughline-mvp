@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import type { TaskStatus } from "@/domain/types";
+import { submitAction } from "@/lib/submitAction";
 
 export function TaskActions({
   taskId,
@@ -17,18 +18,17 @@ export function TaskActions({
   const [pending, start] = useTransition();
   const [who, setWho] = useState(assignee ?? "");
   const [note, setNote] = useState("");
+  const [queued, setQueued] = useState(false);
 
   const closed = status === "done" || status === "cancelled";
 
   function post(kind: string, extra: Record<string, string> = {}) {
+    setQueued(false);
     start(async () => {
-      await fetch(`/api/tasks/${taskId}/action`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ kind, ...extra }),
-      });
+      const res = await submitAction(`/api/tasks/${taskId}/action`, { kind, ...extra }, `task ${kind}`);
       setNote("");
-      router.refresh();
+      if (res.ok && res.queued) setQueued(true);
+      else router.refresh();
     });
   }
 
@@ -91,6 +91,11 @@ export function TaskActions({
           Mark done — close the loop
         </button>
       </div>
+      {queued && (
+        <p className="rounded-lg bg-amber-soft/60 p-2 text-sm text-ink">
+          You&rsquo;re offline — this action is held and will sync when you reconnect.
+        </p>
+      )}
       <p className="text-xs text-slate-muted">
         Reminders and escalations are logged as the notification that <em>would</em> be sent; nothing leaves the
         system in this MVP.

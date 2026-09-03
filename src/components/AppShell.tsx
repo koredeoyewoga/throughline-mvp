@@ -20,26 +20,31 @@ export function AppShell({ role, children }: { role: Role; children: React.React
         Synthetic demonstration environment — every patient, event and organisation below is fictional. No real data.
       </div>
       <header className="border-b border-line bg-white">
-        <div className="mx-auto flex max-w-6xl items-center gap-6 px-4 py-3">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">
           <Link href="/queue" className="flex items-baseline gap-2">
             <span className="text-lg font-bold tracking-tight text-teal">Throughline</span>
             <span className="hidden text-xs font-medium text-slate-muted sm:inline">Coordinate</span>
           </Link>
-          <nav className="flex flex-1 items-center gap-1" aria-label="Primary">
+          <nav
+            className="order-3 -mx-1 flex w-full items-center gap-1 overflow-x-auto px-1 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:overflow-visible sm:px-0"
+            aria-label="Primary"
+          >
             {NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate hover:bg-mist hover:text-ink"
+                className="whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium text-slate hover:bg-mist hover:text-ink"
               >
                 {n.label}
               </Link>
             ))}
           </nav>
-          <RoleSwitch role={role} />
+          <div className="ml-auto sm:ml-0">
+            <RoleSwitch role={role} />
+          </div>
         </div>
       </header>
-      <main id="main" className="mx-auto max-w-6xl px-4 py-6">
+      <main id="main" className="mx-auto max-w-6xl px-4 py-6 pb-20">
         {children}
       </main>
       <footer className="mx-auto max-w-6xl px-4 pb-10 pt-4 text-xs text-slate-muted">
