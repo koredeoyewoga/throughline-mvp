@@ -24,6 +24,9 @@ import type { Task } from "@/domain/types";
 import { buildSeed } from "@/data/seed";
 import { runDetection } from "@/engine/run";
 import { getConfig } from "@/config";
+import { getConfiguredAdapter } from "@/adapters";
+import { mergeEvents } from "@/adapters/merge";
+import type { IngestResult } from "@/adapters/types";
 import {
   createTaskFromException,
   sweepTasks,
@@ -157,6 +160,57 @@ export async function advanceTaskClock(hours: number, actor = "system"): Promise
   );
   persist(state);
   return state;
+}
+
+/**
+ * Pull events from the configured external source adapter (FHIR / e-RS / ToC),
+ * merge the new ones into state, and re-run detection. Read-only against the
+ * source. A no-op when `THROUGHLINE_SOURCE=synthetic`.
+ */
+export async function ingestFromSource(actor = "system"): Promise<IngestResult> {
+  const state = await getState();
+  const adapter = getConfiguredAdapter(state);
+  const base = { added: 0, skipped: 0, unmatched: 0, ignored: 0, exceptions: state.exceptions.length };
+
+  if (!adapter) {
+    return { adapter: "synthetic", ...base, note: "No external source configured (THROUGHLINE_SOURCE=synthetic)." };
+  }
+
+  let pulled;
+  try {
+    pulled = await adapter.fetchEvents(state.lastIngestAt);
+  } catch (err) {
+    return { adapter: adapter.name, ...base, note: `Pull failed: ${(err as Error).message}` };
+  }
+
+  const merged = mergeEvents(state.events, pulled.events);
+  state.events = merged.events;
+  state.lastIngestAt = new Date().toISOString();
+  state.exceptions = await runDetection(state);
+  const swept = sweepTasks(state.tasks ?? [], new Date().toISOString(), getConfig().workflow);
+  state.tasks = swept.tasks;
+  state.lastRunAt = new Date().toISOString();
+
+  state.audit.unshift(
+    auditEntry(actor, `Ingested events from the ${adapter.name} adapter`, "ingest", {
+      adapter: adapter.name,
+      added: merged.added,
+      skippedDuplicates: merged.skipped,
+      unmatchedPatients: pulled.unmatched,
+      ignoredRecords: pulled.ignored,
+      exceptions: state.exceptions.length,
+    }),
+  );
+  persist(state);
+
+  return {
+    adapter: adapter.name,
+    added: merged.added,
+    skipped: merged.skipped,
+    unmatched: pulled.unmatched,
+    ignored: pulled.ignored,
+    exceptions: state.exceptions.length,
+  };
 }
 
 // ---------------------------------------------------------------- reads

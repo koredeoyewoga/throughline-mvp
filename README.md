@@ -34,7 +34,7 @@ npm run build && npm start
 Tests:
 
 ```bash
-npm test        # Vitest — engine, pipeline, config, tasks, offline queue, AI-safety (75)
+npm test        # Vitest — engine, pipeline, config, tasks, offline queue, adapters, AI-safety (113)
 npm run test:e2e   # Playwright — approve → task → done → close, escalation, reject, offline sync (4)
 ```
 
@@ -157,6 +157,26 @@ threshold auto-closes the items it no longer catches; loosening it again
 reopens any that were *only* auto-closed. "Reset demo to seed" does not touch
 config; there is a separate "Reset all to defaults" on the Settings screen.
 
+### Ingesting from a real source
+
+By default events come from the synthetic seed. Set `THROUGHLINE_SOURCE` (see
+`.env.example`) to switch on a read-only adapter:
+
+- **`fhir`** — a live FHIR R4 read adapter. Point `THROUGHLINE_FHIR_BASE_URL`
+  at a server (it is verified against `https://hapi.fhir.org/baseR4`), optionally
+  scope to one `THROUGHLINE_FHIR_PATIENT`. It sweeps `ServiceRequest`,
+  `Encounter`, `Appointment`, `Communication`, `DocumentReference` and `Task`,
+  follows `Bundle.link[next]` paging, and normalises each to a `SourceEvent`.
+- **`ers`** / **`toc`** — map a captured e-RS Referral Request list or a
+  Transfer-of-Care document (`THROUGHLINE_ERS_FILE` / `THROUGHLINE_TOC_FILE`),
+  the path used to exercise those mappers without an HSCN connection.
+
+The **Data source** card on `/settings` shows the adapter status and a **Pull
+from source** button; `POST /api/ingest` does the same headlessly. Every pull
+is idempotent (de-duplicated by event id), re-runs detection, and writes an
+audit entry. A patient the feed names that is not known to this place is
+reported as *unmatched* — never created. Adapters only read.
+
 ---
 
 ## Architecture (MVP)
@@ -164,6 +184,8 @@ config; there is a separate "Reset all to defaults" on the Settings screen.
 ```
 src/
   domain/        types + pathway definitions (defaults; SLAs are config-overridable)
+  adapters/      read-only ingestion — FHIR R4 (live) · e-RS · Transfer-of-Care
+                 normalise a source to SourceEvent[]; strict entity resolution
   engine/tasks   task engine — dispatch, escalation ladder, activity log (pure)
   lib/offline-*  offline write-queue (IndexedDB) + submitAction fetch-or-queue
   app/manifest   web app manifest · public/sw.js — read/shell caching (prod only)
@@ -209,13 +231,18 @@ runtime for all server code. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | `GET` | `/api/tasks/:id` | one task |
 | `POST` | `/api/tasks/:id/action` | `{ kind, value?, note? }` — assign / status / nudge / escalate / note |
 | `POST` | `/api/tasks/advance` | dev helper — pull the task clock back `{ hours }` |
+| `GET` | `/api/ingest` | configured source-adapter status |
+| `POST` | `/api/ingest` | pull events from the configured adapter (FHIR / e-RS / ToC), then re-run detection |
 
 ---
 
 ## What this MVP is not (yet)
 
-- Real integrations — see `docs/ARCHITECTURE.md` for the FHIR / e-RS / ToC
-  adapter seam. The MVP uses a synthetic connector only.
+- Full integrations — the read-only FHIR / e-RS / Transfer-of-Care adapter
+  layer is built (`src/adapters/`, `THROUGHLINE_SOURCE`) and the FHIR path is
+  verified against the public HAPI test server, but the default source is the
+  synthetic seed and a live e-RS / ToC feed still needs HSCN transport +
+  credentials. See `docs/ARCHITECTURE.md`.
 - Real authentication — the role switch is an RBAC-shaped stub, not a security
   boundary.
 - A datastore for scale — `store/db.ts` is a JSON file; swapping it is contained.

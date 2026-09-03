@@ -313,4 +313,6 @@ export interface AppState extends WorldSeed {
   audit: AuditEntry[];
   /** When detection was last run. */
   lastRunAt: string;
+  /** When events were last pulled from an external source adapter (Phase 8). */
+  lastIngestAt?: string;
 }

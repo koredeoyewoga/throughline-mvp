@@ -39,19 +39,39 @@ auto-closes any previously-open exception whose candidate has disappeared
 | Insight Agent | `kpis.ts` | aggregate/cohort views; no per-item actions |
 | Explanation (optional model) | `llm.ts` | given only extracted facts; rephrases the "why"; cannot change action/severity/evidence |
 
-## Integration seam (Phase 8)
+## Integration seam (Phase 8) — implemented
 
-The MVP ingests a synthetic `SourceEvent[]`. A real deployment adds adapters
-that normalise each source into the same `SourceEvent` shape:
+`src/adapters/` normalises an external source into the same `SourceEvent[]` the
+engine already reasons over:
 
 ```
-NHS system ──► adapter ──► normalise to SourceEvent (FHIR UK Core aligned) ──► engine
+NHS system ──► adapter ──► normalise to SourceEvent (FHIR UK Core aligned) ──► mergeEvents ──► runDetection
 ```
 
-Targets: HL7 **FHIR UK Core**, **e-RS** referral APIs, **Transfer of Care /
-IEC** discharge documents, **PDS/Spine** for identity, **CIS2 / NHS login** for
-auth. `EventType` and `SourceEvent` already carry the fields these map onto
-(patient identity, from/to organisation, pathway, timestamp, document text).
+`THROUGHLINE_SOURCE` selects the path (`synthetic` default · `fhir` · `ers` ·
+`toc`). `store/db.ts` `ingestFromSource()` pulls, de-duplicates by
+`SourceEvent.id` (`mergeEvents`), re-runs detection and writes an audit entry.
+`POST /api/ingest` and the **Data source** card on `/settings` drive it. Every
+adapter is **read-only** — GET/search only, no write-back.
+
+| Adapter | Module | Source | Maps |
+|---|---|---|---|
+| FHIR R4 | `adapters/fhir/` | live server (e.g. `hapi.fhir.org/baseR4`), `Bundle.link[next]` paging | `ServiceRequest`→referral events · `Encounter`→admission/discharge · `Appointment`→scheduled/cancelled/DNA/completed · `Communication`→note/contact · `DocumentReference`→discharge summary · `Task`→expected task |
+| e-RS | `adapters/ers/` | captured Referral Request payload (`THROUGHLINE_ERS_FILE`) | worklist status → `referral_made` / `_accepted` / `_rejected` / `_acknowledged` |
+| Transfer of Care | `adapters/toc/` | captured ToC / IEC document (`THROUGHLINE_TOC_FILE`) | one `discharge_summary_issued` + one `task_expected` per requested-action line |
+
+`adapters/resolve.ts` builds the patient/org resolvers from the place's own
+reference data. Entity resolution is **strict**: a `Patient` reference,
+NHS number or local MRN that does not match a patient in this place resolves to
+`null` and the record is counted as *unmatched* — an external feed never
+creates a patient. Mapping reads **structured** fields only (resource type,
+`status`, recognised codes, an explicit pathway extension); free text is copied
+verbatim into `documentText` and never decides the event type, pathway or
+routing (`docs/AI-SAFETY.md`).
+
+Still stubbed: **PDS/Spine** identity, **CIS2 / NHS login** auth, and the
+transport/credentials for a live e-RS or ToC feed (the mappers are complete;
+only the HSCN/API-gateway connection is missing).
 
 ## Offline / PWA
 

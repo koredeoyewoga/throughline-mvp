@@ -5,14 +5,16 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Near term — harden the slice
 
-- **Tests.** _Done:_ Vitest suite (66 tests) — all twelve detectors (fire /
+- **Tests.** _Done:_ Vitest suite (113 tests) — all twelve detectors (fire /
   does-not-fire fixtures), the scorer, the config validator + overrides, the
-  task engine + escalation ladder, a full-pipeline integration test on the seed,
-  an **AI-safety suite** (prompt-injection resistance, no clinical directives in
-  output, evidence grounding, model-output filtering), and **Playwright** e2e
-  (approve → task → done → close, worklist escalation, reject). _Still to do:_
-  run the AI-eval suite against a live model when the rephrase layer is switched
-  on; visual-regression on the queue.
+  task engine + escalation ladder, the offline write-queue, the ingestion
+  adapters (FHIR/e-RS/ToC mapping, entity resolution, paging, merge), a
+  full-pipeline integration test on the seed, an **AI-safety suite**
+  (prompt-injection resistance, no clinical directives in output, evidence
+  grounding, model-output filtering, deterministic adapter mapping), and
+  **Playwright** e2e (approve → task → done → close, worklist escalation,
+  reject, offline sync). _Still to do:_ run the AI-eval suite against a live
+  model when the rephrase layer is switched on; visual-regression on the queue.
 - **More patterns.** _Done:_ cancellation not rebooked, package-of-care delay,
   onward referral after discharge not made, virtual-ward step-down not actioned.
 - **Pathway config.** _Done:_ `PlaceConfig` (schema + validator in `src/config/`)
@@ -51,8 +53,18 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Phase 8 — integrations
 
-- FHIR UK Core / e-RS / Transfer-of-Care adapters against test endpoints, then
-  two real partner read-feeds under a DPIA + DSA.
+- _Done:_ a read-only adapter layer (`src/adapters/`) that normalises an
+  external source into the engine's `SourceEvent[]`. A **live FHIR R4** adapter
+  (search + `Bundle.link[next]` paging, verified against the public HAPI test
+  server), plus **e-RS** and **Transfer-of-Care** mappers that run over a
+  captured test payload. `THROUGHLINE_SOURCE` selects the path;
+  `POST /api/ingest` / the **Data source** card on `/settings` pull and re-run
+  detection; merge is idempotent (de-dupe by event id); unresolved patients are
+  reported, never invented.
+- _Still to do:_ transport + credentials (smartcard / HSCN / API gateway) for a
+  live e-RS and ToC feed; **PDS/Spine** identity and **CIS2 / NHS login** auth;
+  a `_lastUpdated` incremental-sync cursor per source; then two real partner
+  read-feeds under a DPIA + DSA.
 - No writes to external clinical systems in the pilot.
 
 ## Phase 9 — assurance

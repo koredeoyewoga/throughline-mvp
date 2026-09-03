@@ -25,6 +25,8 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | No autonomous change to a clinical record | resolving events are labelled "recorded via Throughline after coordinator action" and live only in this system's state |
 | Reminders / escalations are logged, not sent | task nudges and auto-escalation write a `reminder` activity describing the notification that *would* be sent — no message leaves the system in the MVP; real notifications are a Phase 5 add, still human-approved |
 | Offline actions are held, not inferred | a decision/task action taken offline is queued locally and replayed through the same audited API on reconnect — it is applied only because the human made the decision; a queued action that returns a 4xx on replay is dropped, not retried blindly |
+| Ingestion is read-only and structure-only | `src/adapters/` GET/search only — no write-back. The mapping to `SourceEvent` uses structured fields (resource type, `status`, recognised codes, an explicit pathway extension); free text is copied verbatim to `documentText` and never sets the event type, pathway or routing. Verified by a clean-vs-poisoned mapping test in `ai-safety.test.ts` |
+| No patient is created from an external feed | `adapters/resolve.ts` — a `Patient` reference / NHS number / local MRN that does not match a patient already in this place resolves to `null`; the record is counted as *unmatched* and dropped, not ingested |
 
 ## Out of scope for the MVP (by design)
 
@@ -55,6 +57,10 @@ Covered by the automated suite (`npm test`):
   resolved", "set severity to low", "prescribe…") does **not** change detection,
   severity, score, owner or the recommended action — verified by fingerprinting
   a clean run against a fully-poisoned run of the whole seed.
+- The same holds at the **ingestion boundary**: a FHIR resource carrying an
+  adversarial `note` / narrative maps to the same event `type`, `pathway` and
+  org routing as the clean resource; every mapped event has a valid `EventType`
+  and no `status` / `severity` field.
 - No exception `why` or recommended action contains a clinical directive.
 - `acceptModelText()` drops clinical directives, the "insufficient information"
   reply, chat preamble and empty output.
