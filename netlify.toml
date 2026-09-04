@@ -1,14 +1,12 @@
 # Netlify deployment for the Throughline Coordinate demo.
 # See docs/DEPLOY.md. Set THROUGHLINE_SESSION_SECRET in the Netlify UI
-# (Site settings → Environment variables) before the first deploy.
+# (Site settings -> Environment variables) before the first deploy.
+#
+# Netlify auto-detects Next.js and applies @netlify/plugin-nextjs (App Router,
+# RSC, middleware as an Edge Function) — no plugin block needed here.
 
 [build]
   command = "npm run build"
 
 [build.environment]
   NODE_VERSION = "20"
-
-# Next.js runtime for Netlify (App Router, RSC, middleware as an Edge Function).
-# Netlify applies this automatically for Next sites; pinned here for clarity.
-[[plugins]]
-  package = "@netlify/plugin-nextjs"
