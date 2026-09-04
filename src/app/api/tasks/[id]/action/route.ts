@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { actOnTask } from "@/store/db";
-import { currentPlaceId, actorLabel } from "@/lib/session";
+import { currentPlaceId, currentActor } from "@/lib/session";
 import { authorize } from "@/lib/apiAuth";
 import type { TaskActionKind } from "@/engine/tasks";
 import type { TaskStatus } from "@/domain/types";
@@ -31,7 +31,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const result = await actOnTask(id, {
     kind: body.kind as TaskActionKind,
-    actor: actorLabel(auth.role),
+    actor: await currentActor(),
     value: typeof body.value === "string" ? body.value.slice(0, 200) : undefined,
     note: typeof body.note === "string" ? body.note.slice(0, 500) : undefined,
     placeId: await currentPlaceId(),

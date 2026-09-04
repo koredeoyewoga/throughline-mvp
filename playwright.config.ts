@@ -20,6 +20,9 @@ export default defineConfig({
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    // Signed in as the demo coordinator (written by global-setup). Specs that
+    // need place oversight override with test.use({ storageState }).
+    storageState: "e2e/.auth/coordinator.json",
   },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
   webServer: {

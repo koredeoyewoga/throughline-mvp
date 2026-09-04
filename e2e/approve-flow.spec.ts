@@ -1,8 +1,9 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 
 async function resetToSeed(request: APIRequestContext) {
-  // Resetting config needs the oversight role (config:reset).
-  await request.delete("/api/config", { headers: { Cookie: "throughline_role=oversight" } });
+  // Resetting config needs the oversight role (config:reset); reset needs a session.
+  await request.post("/api/auth/login", { data: { userId: "u-oversight" } });
+  await request.delete("/api/config");
   const res = await request.post("/api/reset");
   expect(res.ok()).toBeTruthy();
 }

@@ -1,32 +1,54 @@
 /**
- * Demo identity. The MVP has NO real authentication — this is a stand-in shaped
- * like the RBAC that a real deployment would enforce (CIS2 / NHS login, roles
- * per organisation, per-place tenancy). The role only changes what the UI
- * offers; it is not a security boundary.
+ * Server-side session accessors (Node runtime — reads the request cookie).
+ *
+ * The identity comes from a signed `throughline_session` cookie
+ * (`lib/auth/session.ts`), set by `/api/auth/login` (the demo credential
+ * provider) or, in production, by the OIDC callback. Middleware (`middleware.ts`)
+ * guarantees a valid session on every non-public route, so `currentUser()` is
+ * non-null there; the fallbacks below only apply when auth is disabled
+ * (`THROUGHLINE_AUTH=off`) or outside the middleware's matcher.
  */
 import { cookies } from "next/headers";
+import { verifySession, SESSION_COOKIE, type SessionUser } from "./auth/session";
 
 export type Role = "coordinator" | "oversight";
 
-export async function currentRole(): Promise<Role> {
+const FALLBACK_USER: SessionUser = {
+  sub: "u-anonymous",
+  name: "Care coordinator (demo)",
+  role: "coordinator",
+  placeId: "place-meadowford",
+  orgId: "org-mch",
+};
+
+export async function currentUser(): Promise<SessionUser> {
   const store = await cookies();
-  const fromCookie = store.get("throughline_role")?.value;
-  if (fromCookie === "coordinator" || fromCookie === "oversight") return fromCookie;
-  const fromEnv = process.env.THROUGHLINE_DEFAULT_ROLE;
-  return fromEnv === "oversight" ? "oversight" : "coordinator";
+  const user = await verifySession(store.get(SESSION_COOKIE)?.value);
+  if (user) return user;
+  // Auth disabled, or a context the middleware does not cover.
+  const envRole = process.env.THROUGHLINE_DEFAULT_ROLE === "oversight" ? "oversight" : "coordinator";
+  return {
+    ...FALLBACK_USER,
+    role: envRole,
+    name: envRole === "oversight" ? "Place oversight (demo)" : "Care coordinator (demo)",
+    placeId: process.env.THROUGHLINE_PLACE_ID || FALLBACK_USER.placeId,
+  };
+}
+
+export async function currentRole(): Promise<Role> {
+  return (await currentUser()).role;
+}
+
+/** The place (tenant) the current session is scoped to. */
+export async function currentPlaceId(): Promise<string> {
+  return (await currentUser()).placeId;
+}
+
+/** Name to attribute an audit entry to. */
+export async function currentActor(): Promise<string> {
+  return (await currentUser()).name;
 }
 
 export function actorLabel(role: Role): string {
   return role === "oversight" ? "Place oversight (demo)" : "Care coordinator (demo)";
-}
-
-/**
- * The place (tenant) the current session is scoped to. In production this comes
- * from the authenticated identity's organisation → place mapping; here it is a
- * single fixed place, but every place-scoped read and write goes through this
- * so the tenancy boundary is enforced by construction, not by convention.
- */
-export async function currentPlaceId(): Promise<string> {
-  const store = await cookies();
-  return store.get("throughline_place")?.value || process.env.THROUGHLINE_PLACE_ID || "place-meadowford";
 }

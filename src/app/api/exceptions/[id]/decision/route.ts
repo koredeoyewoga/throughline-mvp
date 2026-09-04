@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { recordDecision } from "@/store/db";
-import { currentPlaceId, actorLabel } from "@/lib/session";
+import { currentPlaceId, currentActor } from "@/lib/session";
 import { authorize } from "@/lib/apiAuth";
 import type { DecisionKind } from "@/domain/types";
 
@@ -27,7 +27,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
 
   const result = await recordDecision(id, {
     kind: body.kind as DecisionKind,
-    actor: actorLabel(auth.role),
+    actor: await currentActor(),
     note: typeof body.note === "string" ? body.note.slice(0, 500) : undefined,
     amendedAction: typeof body.amendedAction === "string" ? body.amendedAction.slice(0, 1000) : undefined,
     placeId: await currentPlaceId(),

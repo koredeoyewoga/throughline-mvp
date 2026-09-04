@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getState, ingestFromSource } from "@/store/db";
 import { describeSource } from "@/adapters";
-import { actorLabel } from "@/lib/session";
+import { currentActor } from "@/lib/session";
 import { authorize } from "@/lib/apiAuth";
 
 export const runtime = "nodejs";
@@ -21,6 +21,6 @@ export async function GET() {
 export async function POST() {
   const auth = await authorize("source:ingest");
   if ("response" in auth) return auth.response;
-  const result = await ingestFromSource(actorLabel(auth.role));
+  const result = await ingestFromSource(await currentActor());
   return NextResponse.json({ ok: !result.note || result.added > 0, ...result });
 }

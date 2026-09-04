@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { AppShell } from "@/components/AppShell";
 import { PwaProvider } from "@/components/PwaProvider";
-import { currentRole } from "@/lib/session";
 
 export const metadata: Metadata = {
   title: "Throughline Coordinate — MVP",
@@ -24,14 +22,11 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const role = await currentRole();
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-GB">
       <body>
-        <PwaProvider>
-          <AppShell role={role}>{children}</AppShell>
-        </PwaProvider>
+        <PwaProvider>{children}</PwaProvider>
       </body>
     </html>
   );

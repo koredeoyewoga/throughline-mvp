@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { advanceTaskClock } from "@/store/db";
-import { currentRole, actorLabel } from "@/lib/session";
+import { currentActor } from "@/lib/session";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +14,6 @@ export async function POST(req: Request) {
   } catch {
     /* default 12h */
   }
-  const role = await currentRole();
-  const state = await advanceTaskClock(hours, actorLabel(role));
+  const state = await advanceTaskClock(hours, await currentActor());
   return NextResponse.json({ ok: true, hours, tasks: state.tasks.length });
 }

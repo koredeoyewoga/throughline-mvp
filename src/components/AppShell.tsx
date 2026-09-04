@@ -1,6 +1,6 @@
 import Link from "next/link";
-import type { Role } from "@/lib/session";
-import { RoleSwitch } from "./RoleSwitch";
+import type { SessionUser } from "@/lib/auth/session";
+import { UserMenu } from "./UserMenu";
 
 const NAV = [
   { href: "/queue", label: "Attention queue" },
@@ -10,7 +10,7 @@ const NAV = [
   { href: "/settings", label: "Settings" },
 ];
 
-export function AppShell({ role, children }: { role: Role; children: React.ReactNode }) {
+export function AppShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
   return (
     <div className="min-h-screen">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:shadow">
@@ -40,7 +40,7 @@ export function AppShell({ role, children }: { role: Role; children: React.React
             ))}
           </nav>
           <div className="ml-auto sm:ml-0">
-            <RoleSwitch role={role} />
+            <UserMenu user={user} />
           </div>
         </div>
       </header>

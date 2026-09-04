@@ -4,7 +4,7 @@ import { DEFAULT_CONFIG } from "@/config/schema";
 import { slaRows } from "@/config/apply";
 import { PATHWAYS } from "@/domain/pathways";
 import { refreshDetection } from "@/store/db";
-import { actorLabel } from "@/lib/session";
+import { currentActor } from "@/lib/session";
 import { authorize } from "@/lib/apiAuth";
 
 export const runtime = "nodejs";
@@ -35,7 +35,7 @@ export async function PUT(req: Request) {
     return NextResponse.json({ error: "invalid JSON" }, { status: 400 });
   }
   const { config, errors } = saveConfig(body);
-  await refreshDetection(actorLabel(auth.role) + " (config change)");
+  await refreshDetection((await currentActor()) + " (config change)");
   return NextResponse.json({ ok: true, config, errors, slaRows: slaRows(PATHWAYS, config), defaults: DEFAULT_CONFIG });
 }
 
@@ -44,6 +44,6 @@ export async function DELETE() {
   if ("response" in auth) return auth.response;
 
   resetConfig();
-  await refreshDetection(actorLabel(auth.role) + " (config reset)");
+  await refreshDetection((await currentActor()) + " (config reset)");
   return NextResponse.json({ ok: true, ...payload() });
 }
