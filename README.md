@@ -34,8 +34,8 @@ npm run build && npm start
 Tests:
 
 ```bash
-npm test        # Vitest — engine, pipeline, config, tasks, offline queue, adapters, AI-safety (113)
-npm run test:e2e   # Playwright — approve → task → done → close, escalation, reject, offline sync (4)
+npm test        # Vitest — engine, pipeline, config, tasks, offline queue, adapters, rbac, AI-safety (121)
+npm run test:e2e   # Playwright — approve flow, escalation, reject, offline sync, RBAC (6)
 ```
 
 The AI-safety suite checks that adversarial free text in a referral or discharge
@@ -217,22 +217,25 @@ runtime for all server code. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## API
 
+Reads are place-scoped to the caller's `currentPlaceId()`. Writes marked
+**oversight** return `403` for the coordinator role (see `lib/rbac.ts`).
+
 | Method | Route | |
 |---|---|---|
-| `GET` | `/api/exceptions` | all coordination items |
-| `GET` | `/api/exceptions/:id` | one item |
+| `GET` | `/api/exceptions` | coordination items in the caller's place |
+| `GET` | `/api/exceptions/:id` | one item (404 if it belongs to another place) |
 | `POST` | `/api/exceptions/:id/decision` | `{ kind, note?, amendedAction? }` — kind ∈ approve/modify/reject/escalate/close |
 | `POST` | `/api/refresh` | re-run detection, preserving decisions |
 | `POST` | `/api/reset` | rebuild coordination state from the synthetic seed |
 | `GET` | `/api/config` | current place config + defaults + SLA rows |
-| `PUT` | `/api/config` | validate & save config, then re-run detection |
-| `DELETE` | `/api/config` | reset config to built-in defaults, then re-run |
+| `PUT` | `/api/config` | **oversight** — validate & save config, then re-run detection |
+| `DELETE` | `/api/config` | **oversight** — reset config to built-in defaults, then re-run |
 | `GET` | `/api/tasks` | dispatched tasks (`?function=` `?status=` filters) |
 | `GET` | `/api/tasks/:id` | one task |
 | `POST` | `/api/tasks/:id/action` | `{ kind, value?, note? }` — assign / status / nudge / escalate / note |
 | `POST` | `/api/tasks/advance` | dev helper — pull the task clock back `{ hours }` |
 | `GET` | `/api/ingest` | configured source-adapter status |
-| `POST` | `/api/ingest` | pull events from the configured adapter (FHIR / e-RS / ToC), then re-run detection |
+| `POST` | `/api/ingest` | **oversight** — pull events from the configured adapter (FHIR / e-RS / ToC), then re-run detection |
 
 ---
 
@@ -243,8 +246,10 @@ runtime for all server code. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
   verified against the public HAPI test server, but the default source is the
   synthetic seed and a live e-RS / ToC feed still needs HSCN transport +
   credentials. See `docs/ARCHITECTURE.md`.
-- Real authentication — the role switch is an RBAC-shaped stub, not a security
-  boundary.
+- Real authentication — RBAC and per-place tenancy are enforced at the API
+  (`lib/rbac.ts`, `lib/tenancy.ts`: privileged actions are oversight-only,
+  cross-place ids are "not found"), but the role and place are still demo
+  switches, not an authenticated CIS2 / NHS login identity.
 - A datastore for scale — `store/db.ts` is a JSON file; swapping it is contained.
 - Assured — DSPT, DTAC, DCB0129, DPIA and the MHRA classification are Phase 9
   work. `docs/AI-SAFETY.md` lists what is implemented vs still required.

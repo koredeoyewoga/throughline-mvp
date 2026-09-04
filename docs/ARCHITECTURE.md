@@ -8,7 +8,7 @@
 | **Intelligence** | `src/engine/{coordinationAgent,documentAgent,prioritisation,explain}.ts` — deterministic detection, extraction, scoring and drafting. `llm.ts` is the optional model seam. |
 | **Orchestration** | `src/store/db.ts` `recordDecision()` — task lifecycle, resolving-event injection, re-detection, audit. |
 | **Human oversight** | `src/components/DecisionPanel.tsx` + `run.ts` reconciliation — every material action is approve / amend / reject / escalate, and the prior decision is always preserved. |
-| **Assurance** | append-only `audit` array, governance checks per item, role stub, "synthetic data" banner, no autonomous sends. |
+| **Assurance** | append-only `audit` array, governance checks per item, RBAC + per-place tenancy enforced at the API (`lib/rbac.ts`, `lib/tenancy.ts`), "synthetic data" banner, no autonomous sends. |
 
 ## The pipeline
 
@@ -125,6 +125,27 @@ with an approval trail.
 repository functions (`getState`, `listExceptions`, `recordDecision`, …) over a
 JSON file. Replacing it with PostgreSQL/Prisma is a change contained to that
 file; nothing else imports `fs`.
+
+## Access control
+
+Two seams, both driven from `src/lib/`:
+
+- **RBAC** — `rbac.ts` holds a permission matrix per role (`coordinator` ⊂
+  `oversight`); `apiAuth.ts` `authorize(permission)` gates a route and returns a
+  ready-made `403`. `config:edit`, `config:reset` and `source:ingest` are
+  oversight-only; `exception:decide` / `task:act` are checked too. The
+  `/settings` UI mirrors the matrix (read-only fieldset + banner when the role
+  lacks `config:edit`).
+- **Tenancy** — `session.ts` `currentPlaceId()` is the tenant identity;
+  `tenancy.ts` (`inPlace` / `visibleInPlace` / `writableInPlace`) is applied in
+  every place-scoped `db.ts` read and in `recordDecision` / `actOnTask`, so a
+  cross-place id resolves to "not found" and a cross-place write is refused.
+  With one place in the seed this is a no-op in practice, but it is the
+  enforced boundary a multi-tenant deployment needs.
+
+Both are keyed off demo switches today (a role cookie, a place cookie/env). A
+real deployment feeds them from a CIS2 / NHS login identity and its
+organisation → place mapping; nothing else in the code changes.
 
 ## Why these choices
 

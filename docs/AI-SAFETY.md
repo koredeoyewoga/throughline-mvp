@@ -20,7 +20,8 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | Prompt & model versioning hooks | `THROUGHLINE_AI_MODEL` pins the model; `whySource` on each exception records whether wording came from the model |
 | Timeout / fail-safe on the model call | 12s `AbortSignal.timeout`; any failure falls back to deterministic text |
 | No PII in URLs or logs | synthetic ids only; the API takes ids in the path, not patient data |
-| Tenancy shape | every entity carries `placeId`; the query layer is place-scoped by construction |
+| Least privilege by role | `lib/rbac.ts` — a permission matrix; `config:edit`, `config:reset` and `source:ingest` are oversight-only. Every mutating API route calls `authorize()` and returns `403` otherwise; the `/settings` UI is read-only without the permission. The role is still a demo switch, not an authenticated identity (below) |
+| Per-place tenancy enforced | `lib/tenancy.ts` + `currentPlaceId()` — every place-scoped read hides rows from other places and `recordDecision` / `actOnTask` refuse a write to an entity outside the caller's place, so a cross-tenant id is "not found", not a leak |
 | Config changes are constrained + logged | `validateConfig` clamps every knob to a safe range; a save writes an audit entry and re-runs detection so the effect is visible and attributable |
 | No autonomous change to a clinical record | resolving events are labelled "recorded via Throughline after coordinator action" and live only in this system's state |
 | Reminders / escalations are logged, not sent | task nudges and auto-escalation write a `reminder` activity describing the notification that *would* be sent — no message leaves the system in the MVP; real notifications are a Phase 5 add, still human-approved |
@@ -44,7 +45,7 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | **DSPT** submission | not started |
 | **DTAC** pack | not started |
 | **Cyber Essentials Plus** | not started |
-| Real authentication — **CIS2 / NHS login**, RBAC per organisation, enforced per-place tenancy | stubbed (`src/lib/session.ts`) |
+| Real authentication — **CIS2 / NHS login** identity, org → place mapping from the token | stubbed (`src/lib/session.ts` — role and place are demo switches). RBAC and per-place tenancy are now **enforced at the API** (`lib/rbac.ts`, `lib/tenancy.ts`); what is missing is the authenticated identity behind them |
 | Independent penetration test before any pilot with real data | not started |
 | Equality Impact Assessment; fairness evaluation of entity resolution + prioritisation across demographic groups | not started |
 | AI evaluation suite | _partly done_ — `src/engine/__tests__/ai-safety.test.ts` and `llm.test.ts` cover prompt-injection resistance, the clinical-directive boundary, evidence grounding and output filtering against the deterministic engine. Running the rephrase layer against a live model, plus data-leakage / cross-tenant probes, remain. |

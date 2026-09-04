@@ -5,16 +5,17 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Near term — harden the slice
 
-- **Tests.** _Done:_ Vitest suite (113 tests) — all twelve detectors (fire /
+- **Tests.** _Done:_ Vitest suite (121 tests) — all twelve detectors (fire /
   does-not-fire fixtures), the scorer, the config validator + overrides, the
   task engine + escalation ladder, the offline write-queue, the ingestion
-  adapters (FHIR/e-RS/ToC mapping, entity resolution, paging, merge), a
-  full-pipeline integration test on the seed, an **AI-safety suite**
-  (prompt-injection resistance, no clinical directives in output, evidence
-  grounding, model-output filtering, deterministic adapter mapping), and
-  **Playwright** e2e (approve → task → done → close, worklist escalation,
-  reject, offline sync). _Still to do:_ run the AI-eval suite against a live
-  model when the rephrase layer is switched on; visual-regression on the queue.
+  adapters (FHIR/e-RS/ToC mapping, entity resolution, paging, merge), the RBAC
+  matrix + place-scoping helpers, a full-pipeline integration test on the seed,
+  an **AI-safety suite** (prompt-injection resistance, no clinical directives in
+  output, evidence grounding, model-output filtering, deterministic adapter
+  mapping), and **Playwright** e2e (approve → task → done → close, worklist
+  escalation, reject, offline sync, RBAC 403s + read-only Settings). _Still to
+  do:_ run the AI-eval suite against a live model when the rephrase layer is
+  switched on; visual-regression on the queue.
 - **More patterns.** _Done:_ cancellation not rebooked, package-of-care delay,
   onward referral after discharge not made, virtual-ward step-down not actioned.
 - **Pathway config.** _Done:_ `PlaceConfig` (schema + validator in `src/config/`)
@@ -69,7 +70,13 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Phase 9 — assurance
 
-- DPIA, DCB0129 + CSO, MHRA classification, DSPT, DTAC, Cyber Essentials Plus,
+- _Done:_ **RBAC** (`lib/rbac.ts`) and **per-place tenancy** (`lib/tenancy.ts`)
+  are enforced at the API — privileged actions (`config:edit`, `config:reset`,
+  `source:ingest`) are oversight-only and return `403` otherwise; place-scoped
+  reads hide other tenants' rows and cross-place writes are refused.
+- _Still to do:_ the authenticated identity behind them — **CIS2 / NHS login**,
+  the org → place mapping from the token, session management — plus DPIA,
+  DCB0129 + CSO, MHRA classification, DSPT, DTAC, Cyber Essentials Plus,
   penetration test, EIA. See `docs/AI-SAFETY.md`.
 
 ## Phase 12 — deployment
