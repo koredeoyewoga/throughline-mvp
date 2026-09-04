@@ -10,7 +10,15 @@ const NAV = [
   { href: "/settings", label: "Settings" },
 ];
 
-export function AppShell({ user, children }: { user: SessionUser; children: React.ReactNode }) {
+export function AppShell({
+  user,
+  ephemeral = false,
+  children,
+}: {
+  user: SessionUser;
+  ephemeral?: boolean;
+  children: React.ReactNode;
+}) {
   return (
     <div className="min-h-screen">
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:rounded focus:bg-white focus:px-3 focus:py-2 focus:shadow">
@@ -18,6 +26,7 @@ export function AppShell({ user, children }: { user: SessionUser; children: Reac
       </a>
       <div className="bg-amber-soft/70 px-4 py-1.5 text-center text-xs font-medium text-ink">
         Synthetic demonstration environment — every patient, event and organisation below is fictional. No real data.
+        {ephemeral && <> Demo state is per-session and resets on its own.</>}
       </div>
       <header className="border-b border-line bg-white">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3">

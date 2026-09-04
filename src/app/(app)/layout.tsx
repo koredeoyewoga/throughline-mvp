@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/AppShell";
 import { currentUser } from "@/lib/session";
+import { onEphemeralFs } from "@/lib/dataDir";
 
 export const dynamic = "force-dynamic";
 
@@ -9,5 +10,9 @@ export const dynamic = "force-dynamic";
  */
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const user = await currentUser();
-  return <AppShell user={user}>{children}</AppShell>;
+  return (
+    <AppShell user={user} ephemeral={onEphemeralFs()}>
+      {children}
+    </AppShell>
+  );
 }

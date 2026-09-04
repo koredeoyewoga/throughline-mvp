@@ -7,8 +7,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CONFIG, validateConfig, type PlaceConfig } from "./schema";
+import { dataDir } from "@/lib/dataDir";
 
-const FILE = path.join(process.cwd(), ".data", "config.json");
+const FILE = path.join(dataDir(), "config.json");
 
 let cache: { config: PlaceConfig; errors: string[] } | null = null;
 
@@ -35,9 +36,14 @@ export function getConfigWithErrors(): { config: PlaceConfig; errors: string[] }
 /** Validate, persist and return the new config plus any corrections that were made. */
 export function saveConfig(raw: unknown): { config: PlaceConfig; errors: string[] } {
   const result = validateConfig(raw);
-  const dir = path.dirname(FILE);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(result.config, null, 2), "utf8");
+  try {
+    const dir = path.dirname(FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify(result.config, null, 2), "utf8");
+  } catch {
+    // Serverless read-only fs — the in-memory cache below still applies the
+    // change for this instance.
+  }
   cache = result;
   return result;
 }

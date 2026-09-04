@@ -45,7 +45,7 @@ the MVP *implements* from what an NHS deployment *still requires*.
 | **DSPT** submission | not started |
 | **DTAC** pack | not started |
 | **Cyber Essentials Plus** | not started |
-| Real authentication — **CIS2 / NHS login** identity, org → place mapping from the token | stubbed (`src/lib/session.ts` — role and place are demo switches). RBAC and per-place tenancy are now **enforced at the API** (`lib/rbac.ts`, `lib/tenancy.ts`); what is missing is the authenticated identity behind them |
+| Real authentication — **CIS2 / NHS login** identity, org → place mapping from the token | there is a real session (`lib/auth/session.ts` — signed cookie) and `middleware.ts` gates every route; RBAC and per-place tenancy are enforced from it (`lib/rbac.ts`, `lib/tenancy.ts`). The stand-in is the identity provider — `/login` is a demo user picker, not CIS2 (`lib/auth/oidc.ts` is the seam) |
 | Independent penetration test before any pilot with real data | not started |
 | Equality Impact Assessment; fairness evaluation of entity resolution + prioritisation across demographic groups | not started |
 | AI evaluation suite | _partly done_ — `src/engine/__tests__/ai-safety.test.ts` and `llm.test.ts` cover prompt-injection resistance, the clinical-directive boundary, evidence grounding and output filtering against the deterministic engine. Running the rephrase layer against a live model, plus data-leakage / cross-tenant probes, remain. |

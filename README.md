@@ -21,9 +21,11 @@ npm run dev
 # open http://localhost:3000
 ```
 
-No configuration is required. State is seeded from the synthetic dataset on
-first load and persisted to `.data/state.json`. Use **Reset demo to seed** in
-the UI (or `POST /api/reset`) to start over.
+No configuration is required. On first load you land on **Sign in** — one click
+picks a demo identity (coordinator, place oversight, or a coordinator in a
+different place). State is seeded from the synthetic dataset and persisted to
+`.data/state.json`; **Reset demo to seed** in the UI (or `POST /api/reset`)
+starts over. Set `THROUGHLINE_AUTH=off` to skip the login screen.
 
 Production build:
 
@@ -31,11 +33,14 @@ Production build:
 npm run build && npm start
 ```
 
+**Deploy a shareable link** (Netlify): see [`docs/DEPLOY.md`](docs/DEPLOY.md) —
+connect the repo, set `THROUGHLINE_SESSION_SECRET`, deploy.
+
 Tests:
 
 ```bash
-npm test        # Vitest — engine, pipeline, config, tasks, offline queue, adapters, rbac, AI-safety (121)
-npm run test:e2e   # Playwright — approve flow, escalation, reject, offline sync, RBAC (6)
+npm test        # Vitest — engine, pipeline, config, tasks, offline queue, adapters, rbac, auth, AI-safety (126)
+npm run test:e2e   # Playwright — approve flow, escalation, reject, offline sync, RBAC, auth gate (8)
 ```
 
 The AI-safety suite checks that adversarial free text in a referral or discharge
@@ -217,8 +222,16 @@ runtime for all server code. See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
 ## API
 
+Every route needs a signed session cookie (`/login`); outside the allow-list an
+unauthenticated call gets `401` (API) or a redirect to `/login` (browser).
 Reads are place-scoped to the caller's `currentPlaceId()`. Writes marked
 **oversight** return `403` for the coordinator role (see `lib/rbac.ts`).
+
+| Method | Route | |
+|---|---|---|
+| `POST` | `/api/auth/login` | `{ userId }` — sign a session for a demo identity (public) |
+| `POST` | `/api/auth/logout` | clear the session (public) |
+| `GET` | `/api/auth/start` | begin the OIDC flow — `501` unless an issuer is configured (public) |
 
 | Method | Route | |
 |---|---|---|
@@ -246,10 +259,11 @@ Reads are place-scoped to the caller's `currentPlaceId()`. Writes marked
   verified against the public HAPI test server, but the default source is the
   synthetic seed and a live e-RS / ToC feed still needs HSCN transport +
   credentials. See `docs/ARCHITECTURE.md`.
-- Real authentication — RBAC and per-place tenancy are enforced at the API
-  (`lib/rbac.ts`, `lib/tenancy.ts`: privileged actions are oversight-only,
-  cross-place ids are "not found"), but the role and place are still demo
-  switches, not an authenticated CIS2 / NHS login identity.
+- Real authentication — there is a real session (signed cookie, middleware gate
+  on every route) and RBAC + per-place tenancy are enforced from it
+  (`lib/rbac.ts`, `lib/tenancy.ts`). What is a stand-in is the **identity
+  provider**: `/login` is a one-click demo user picker, not NHS CIS2 (the OIDC
+  seam is `lib/auth/oidc.ts` + `/api/auth/start`).
 - A datastore for scale — `store/db.ts` is a JSON file; swapping it is contained.
 - Assured — DSPT, DTAC, DCB0129, DPIA and the MHRA classification are Phase 9
   work. `docs/AI-SAFETY.md` lists what is implemented vs still required.

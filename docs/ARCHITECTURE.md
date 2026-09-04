@@ -123,29 +123,42 @@ with an approval trail.
 
 `src/store/db.ts` is the only module that touches storage. It exposes
 repository functions (`getState`, `listExceptions`, `recordDecision`, …) over a
-JSON file. Replacing it with PostgreSQL/Prisma is a change contained to that
-file; nothing else imports `fs`.
+JSON file whose directory comes from `src/lib/dataDir.ts` — `.data/` locally,
+`/tmp` on a serverless host (per-instance, cleared on cold start; writes are
+best-effort and fall back to the in-memory cache). Replacing this with
+PostgreSQL / Prisma / Netlify Blobs is a change contained to that file; nothing
+else imports `fs`.
 
 ## Access control
 
-Two seams, both driven from `src/lib/`:
+Three seams:
 
+- **Session** — `lib/auth/session.ts` mints and verifies an HMAC-SHA256 signed
+  cookie using Web Crypto, so the same check runs in Edge middleware and Node
+  routes. `src/middleware.ts` requires a valid session on every route outside a
+  small allow-list (`/login`, `/api/auth/*`, `/offline`, PWA assets):
+  unauthenticated browser → `/login?next=…`, API → `401`. `THROUGHLINE_AUTH=off`
+  disables the gate. The identity provider is a stand-in — `/login` picks a demo
+  user (`lib/auth/users.ts`); `lib/auth/oidc.ts` + `/api/auth/start` is the CIS2
+  seam. `lib/session.ts` `currentUser()` reads the verified session and RBAC /
+  tenancy key off it.
 - **RBAC** — `rbac.ts` holds a permission matrix per role (`coordinator` ⊂
   `oversight`); `apiAuth.ts` `authorize(permission)` gates a route and returns a
   ready-made `403`. `config:edit`, `config:reset` and `source:ingest` are
   oversight-only; `exception:decide` / `task:act` are checked too. The
   `/settings` UI mirrors the matrix (read-only fieldset + banner when the role
   lacks `config:edit`).
-- **Tenancy** — `session.ts` `currentPlaceId()` is the tenant identity;
+- **Tenancy** — `currentPlaceId()` (from the session) is the tenant identity;
   `tenancy.ts` (`inPlace` / `visibleInPlace` / `writableInPlace`) is applied in
   every place-scoped `db.ts` read and in `recordDecision` / `actOnTask`, so a
   cross-place id resolves to "not found" and a cross-place write is refused.
   With one place in the seed this is a no-op in practice, but it is the
   enforced boundary a multi-tenant deployment needs.
 
-Both are keyed off demo switches today (a role cookie, a place cookie/env). A
-real deployment feeds them from a CIS2 / NHS login identity and its
-organisation → place mapping; nothing else in the code changes.
+Authenticated pages live under `app/(app)/` with a layout that renders the
+chrome; `/login` and `/offline` render bare. A real deployment swaps the demo
+provider for CIS2 / NHS login and its organisation → place mapping; nothing else
+changes.
 
 ## Why these choices
 

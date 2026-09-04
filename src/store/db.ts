@@ -35,15 +35,21 @@ import {
   taskSlaHours,
   type TaskActionKind,
 } from "@/engine/tasks";
+import { dataDir } from "@/lib/dataDir";
 
-const DATA_DIR = path.join(process.cwd(), ".data");
+const DATA_DIR = dataDir();
 const FILE = path.join(DATA_DIR, "state.json");
 
 let cache: AppState | null = null;
 
 function persist(state: AppState): void {
-  if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
-  fs.writeFileSync(FILE, JSON.stringify(state, null, 2), "utf8");
+  try {
+    if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify(state, null, 2), "utf8");
+  } catch {
+    // Read-only or full filesystem (serverless). The in-memory `cache` still
+    // serves this instance; a cold start re-seeds from the synthetic world.
+  }
 }
 
 const HOUR = 3600 * 1000;
