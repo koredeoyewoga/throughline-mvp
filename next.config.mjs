@@ -5,6 +5,9 @@ import { dirname } from "node:path";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  // No ESLint config in the repo (lint is run separately); `next build` on CI
+  // would otherwise try to bootstrap ESLint non-interactively and fail.
+  eslint: { ignoreDuringBuilds: true },
 };
 
 // Windows-only: this project lives under a home directory whose stored casing
