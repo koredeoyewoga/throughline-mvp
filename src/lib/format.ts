@@ -1,5 +1,5 @@
 import { NOW } from "@/data/events";
-import type { FailurePattern } from "@/domain/types";
+import type { FailurePattern, BlockerCategory, OwnerStatus } from "@/domain/types";
 
 const HOUR = 3600 * 1000;
 
@@ -66,8 +66,34 @@ export function statusLabel(status: string): string {
     blocked: "Blocked",
     done: "Done",
     cancelled: "Cancelled",
+    awaiting_response: "Awaiting response",
+    resolved: "Resolved",
   };
   return map[status] ?? status;
+}
+
+const BLOCKER_CATEGORY_LABELS: Record<BlockerCategory, string> = {
+  awaiting_other_team: "Awaiting another team",
+  awaiting_external_organisation: "Awaiting an external organisation",
+  missing_information: "Missing information",
+  capacity_constraint: "Capacity constraint",
+  patient_or_family_factor: "Patient or family factor",
+  system_or_access_issue: "System or access issue",
+  other: "Other",
+};
+
+export function blockerCategoryLabel(category: string): string {
+  return BLOCKER_CATEGORY_LABELS[category as BlockerCategory] ?? category;
+}
+
+const OWNER_STATUS_LABELS: Record<OwnerStatus, string> = {
+  confirmed: "Owner confirmed",
+  pending_ack: "Pending acknowledgement",
+  unknown: "Owner unknown",
+};
+
+export function ownerStatusLabel(status: OwnerStatus): string {
+  return OWNER_STATUS_LABELS[status];
 }
 
 export const FUNCTION_LABELS: Record<string, string> = {

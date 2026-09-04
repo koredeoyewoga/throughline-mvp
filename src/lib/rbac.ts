@@ -13,6 +13,8 @@ export type Permission =
   | "queue:view"
   | "exception:decide" // approve / modify / reject / escalate / close
   | "task:act" // assign / status / nudge / escalate / note
+  | "blocker:manage" // report / resolve a blocker
+  | "handoff:manage" // hand off / acknowledge a handoff
   | "detection:refresh"
   | "demo:reset" // rebuild demo state from the seed
   | "demo:advanceClock" // dev helper on the worklist
@@ -24,6 +26,8 @@ const COORDINATOR: Permission[] = [
   "queue:view",
   "exception:decide",
   "task:act",
+  "blocker:manage",
+  "handoff:manage",
   "detection:refresh",
   "demo:reset",
   "demo:advanceClock",
@@ -46,6 +50,8 @@ export function denyReason(role: Role, permission: Permission): string {
     "queue:view": "view the queue",
     "exception:decide": "make a decision on a coordination item",
     "task:act": "act on a task",
+    "blocker:manage": "report or resolve a blocker",
+    "handoff:manage": "hand off or acknowledge ownership of a task",
     "detection:refresh": "re-run detection",
     "demo:reset": "reset the demo",
     "demo:advanceClock": "advance the demo clock",

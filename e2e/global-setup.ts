@@ -12,8 +12,8 @@ import path from "node:path";
 const BASE = "http://localhost:3000";
 const AUTH_DIR = path.join(__dirname, ".auth");
 
-const PAGES = ["/", "/queue", "/worklist", "/kpis", "/audit", "/settings", "/offline", "/login"];
-const APIS = ["/api/exceptions", "/api/tasks", "/api/config", "/api/ingest"];
+const PAGES = ["/", "/queue", "/worklist", "/blockers", "/kpis", "/audit", "/settings", "/offline", "/login"];
+const APIS = ["/api/exceptions", "/api/tasks", "/api/config", "/api/ingest", "/api/blockers"];
 
 export default async function globalSetup() {
   fs.mkdirSync(AUTH_DIR, { recursive: true });
@@ -57,7 +57,13 @@ export default async function globalSetup() {
       await warm(`/worklist/${taskId}`);
       await warm(`/api/tasks/${taskId}`);
       await warm(`/api/tasks/${taskId}/action`, { method: "POST", data: {} });
+      await warm(`/api/tasks/${taskId}/handoff`, { method: "POST", data: {} });
     }
+    await warm(`/exceptions/${seedId}`); // re-warm now the exception carries a Blockers section
+    await warm(`/api/blockers`, { method: "POST", data: {} });
+    await warm(`/api/blockers/warm-nonexistent`);
+    await warm(`/api/blockers/warm-nonexistent/resolve`, { method: "POST", data: {} });
+    await warm(`/api/handoffs/warm-nonexistent/acknowledge`, { method: "POST" });
   } catch {
     /* best effort */
   }

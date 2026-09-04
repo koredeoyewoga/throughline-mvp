@@ -6,7 +6,7 @@ import { mapResource } from "@/adapters/fhir/map";
 import type { AppState, Exception } from "@/domain/types";
 
 function freshState(): AppState {
-  return { ...buildSeed(), exceptions: [], tasks: [], audit: [], lastRunAt: new Date().toISOString() };
+  return { ...buildSeed(), exceptions: [], tasks: [], blockers: [], handoffs: [], audit: [], lastRunAt: new Date().toISOString() };
 }
 
 /** Adversarial strings a hostile referral / discharge summary might carry. */

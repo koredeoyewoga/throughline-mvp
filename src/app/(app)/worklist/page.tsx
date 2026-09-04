@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { listTasks } from "@/store/db";
+import { listTasks, listHandoffs } from "@/store/db";
 import { TaskCard } from "@/components/TaskCard";
 import { WorklistControls } from "@/components/WorklistControls";
 import { RefreshButton } from "@/components/RefreshButton";
 import { functionLabel } from "@/lib/format";
 import { currentPlaceId } from "@/lib/session";
+import { getConfig } from "@/config";
+import { ownerStatus } from "@/engine/handoffs";
 import type { Task } from "@/domain/types";
 
 export const dynamic = "force-dynamic";
@@ -15,8 +17,11 @@ export default async function WorklistPage(props: {
   searchParams: Promise<{ fn?: string; status?: string; overdue?: string }>;
 }) {
   const { fn = "all", status = "all", overdue } = await props.searchParams;
-  const all = await listTasks(await currentPlaceId());
+  const placeId = await currentPlaceId();
+  const [all, handoffs] = await Promise.all([listTasks(placeId), listHandoffs(placeId)]);
   const now = Date.now();
+  const confirmationWindowHours = getConfig().workflow.escalateToLevel1AfterHours;
+  const nowIso = new Date(now).toISOString();
 
   const live = all.filter((t) => t.status !== "done" && t.status !== "cancelled");
   const isOverdue = (t: Task) => t.status !== "done" && t.status !== "cancelled" && now > Date.parse(t.dueAt);
@@ -120,7 +125,11 @@ export default async function WorklistPage(props: {
                   <ul className="space-y-3">
                     {tasks.map((t) => (
                       <li key={t.id}>
-                        <TaskCard task={t} now={now} />
+                        <TaskCard
+                          task={t}
+                          now={now}
+                          ownerStatus={ownerStatus(t.id, handoffs, nowIso, confirmationWindowHours)}
+                        />
                       </li>
                     ))}
                   </ul>

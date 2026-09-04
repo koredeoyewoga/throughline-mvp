@@ -231,7 +231,9 @@ export type TaskActivityKind =
   | "nudge" // a chase / reminder to the owning team
   | "escalate"
   | "note"
-  | "reminder"; // a notification the system would send (human-approved in production)
+  | "reminder" // a notification the system would send (human-approved in production)
+  | "handoff" // a Handoff was created against this task — see the Handoff record for detail
+  | "handoff_ack"; // the receiving owner acknowledged a Handoff
 
 export interface TaskActivity {
   id: string;
@@ -264,6 +266,64 @@ export interface Task {
   escalationLevel: 0 | 1 | 2;
   activity: TaskActivity[];
 }
+
+// --- Blockers: explicit obstacles a person raises independently of ------
+// --- automated detection --------------------------------------------------
+
+export type BlockerStatus = "open" | "awaiting_response" | "resolved";
+
+export const BLOCKER_CATEGORIES = [
+  "awaiting_other_team",
+  "awaiting_external_organisation",
+  "missing_information",
+  "capacity_constraint",
+  "patient_or_family_factor",
+  "system_or_access_issue",
+  "other",
+] as const;
+export type BlockerCategory = (typeof BLOCKER_CATEGORIES)[number];
+
+export interface Blocker {
+  id: string;
+  placeId: string;
+  /** What this blocker is raised against — an exception, a task, or both. */
+  exceptionId?: string;
+  taskId?: string;
+  title: string;
+  category: BlockerCategory;
+  description: string;
+  owner: { functionArea: Team["functionArea"]; orgId: string; label: string };
+  status: BlockerStatus;
+  /** Named organisation/team outside the immediate team, if the blocker is external. */
+  externalDependency?: string;
+  createdAt: string;
+  createdBy: string;
+  updatedAt: string;
+  resolvedAt?: string;
+  resolvedBy?: string;
+  resolutionNote?: string;
+}
+
+// --- Handoffs: a change of ownership that must be acknowledged -----------
+// A handoff does not change `Task.assignee` until the new owner acknowledges
+// it — ownership requires human confirmation, not just a reassignment.
+
+export interface Handoff {
+  id: string;
+  placeId: string;
+  taskId: string;
+  /** null when the task had no confirmed owner before this handoff. */
+  fromOwner: string | null;
+  toOwner: string;
+  reason: string;
+  at: string;
+  by: string;
+  acknowledgedAt?: string;
+  acknowledgedBy?: string;
+}
+
+/** Whether a task's ownership is confirmed, pending confirmation, or unclear. */
+export type OwnerStatus = "confirmed" | "pending_ack" | "unknown";
 
 // --- Audit --------------------------------------------------------------
 
@@ -310,6 +370,8 @@ export interface WorldSeed {
 export interface AppState extends WorldSeed {
   exceptions: Exception[];
   tasks: Task[];
+  blockers: Blocker[];
+  handoffs: Handoff[];
   audit: AuditEntry[];
   /** When detection was last run. */
   lastRunAt: string;

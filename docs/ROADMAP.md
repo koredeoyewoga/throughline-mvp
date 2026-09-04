@@ -5,7 +5,7 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 
 ## Near term — harden the slice
 
-- **Tests.** _Done:_ Vitest suite (121 tests) — all twelve detectors (fire /
+- **Tests.** _Done:_ Vitest suite (140 tests) — all twelve detectors (fire /
   does-not-fire fixtures), the scorer, the config validator + overrides, the
   task engine + escalation ladder, the offline write-queue, the ingestion
   adapters (FHIR/e-RS/ToC mapping, entity resolution, paging, merge), the RBAC
@@ -40,6 +40,17 @@ This MVP covers Phase 3 (core MVP on synthetic data) and most of Phase 4
 - _Still to do:_ per-function task SLAs (single value today); real notifications
   (email / NHS App messaging) in place of the logged "would send" reminders,
   still human-approved; a "my tasks" view once there is real auth; bulk actions.
+- **Blockers & Handoffs.** _Done:_ a first-class `Blocker` entity — a person
+  names an obstacle explicitly (category, description, optional external
+  organisation), independent of the automated detectors, and resolves it with
+  a note; reportable from any exception or task, listed on `/blockers`. A
+  `Handoff` entity records a change of ownership as its own auditable event —
+  creating one does **not** change `Task.assignee` until the new owner
+  acknowledges it, so `ownerStatus()` can report a task as pending
+  acknowledgement, and — past a configurable confirmation window — **Owner
+  unknown**, surfaced as its own coordination risk on the worklist and the task
+  page. See `docs/TRANSFORMATION.md` for the full audit/gap-analysis/roadmap
+  this was scoped from.
 
 ## Phase 6–7 — web + PWA
 

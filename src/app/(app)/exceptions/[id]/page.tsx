@@ -5,6 +5,8 @@ import { buildPathwayStates, resolutionSummary } from "@/engine/dataIntelligence
 import { pathwayByKey, getPathways } from "@/domain/pathways";
 import { EvidenceList } from "@/components/EvidenceList";
 import { DecisionPanel } from "@/components/DecisionPanel";
+import { BlockerList } from "@/components/BlockerList";
+import { ReportBlockerForm } from "@/components/ReportBlockerForm";
 import { SeverityBadge, StatusBadge, ConfidenceBadge } from "@/components/Badge";
 import { patternLabel, realSince, sinceNow, escalationLabel } from "@/lib/format";
 import { currentPlaceId } from "@/lib/session";
@@ -30,6 +32,7 @@ export default async function ExceptionPage(props: { params: Promise<{ id: strin
   );
 
   const task = (state.tasks ?? []).find((t) => t.exceptionId === exception.id && t.status !== "cancelled");
+  const blockers = (state.blockers ?? []).filter((b) => b.exceptionId === exception.id);
 
   return (
     <div className="space-y-6">
@@ -119,6 +122,19 @@ export default async function ExceptionPage(props: { params: Promise<{ id: strin
               </div>
             </section>
           )}
+
+          <section className="card p-4">
+            <h2 className="text-sm font-bold text-ink">Blockers</h2>
+            <p className="mt-1 text-xs text-slate-muted">
+              An obstacle a person names explicitly — tracked and resolved independently of automated detection.
+            </p>
+            <div className="mt-3">
+              <BlockerList blockers={blockers} />
+            </div>
+            <div className="mt-3">
+              <ReportBlockerForm exceptionId={exception.id} />
+            </div>
+          </section>
         </div>
 
         {/* RIGHT */}

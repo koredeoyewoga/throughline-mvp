@@ -11,6 +11,10 @@ approve / amend / reject / escalate workflow with a full audit trail.
 > (the "Meadowford" place). Nothing here is a real record and nothing is a
 > medical device — the platform makes **no clinical decisions**.
 
+See [`docs/TRANSFORMATION.md`](docs/TRANSFORMATION.md) for the current-state
+audit, gap analysis against the full product vision, target architecture and
+phased roadmap.
+
 ---
 
 ## Run it
@@ -39,8 +43,8 @@ connect the repo, set `THROUGHLINE_SESSION_SECRET`, deploy.
 Tests:
 
 ```bash
-npm test        # Vitest — engine, pipeline, config, tasks, offline queue, adapters, rbac, auth, AI-safety (126)
-npm run test:e2e   # Playwright — approve flow, escalation, reject, offline sync, RBAC, auth gate (8)
+npm test        # Vitest — engine, pipeline, config, tasks, blockers, handoffs, offline queue, adapters, rbac, auth, AI-safety (140)
+npm run test:e2e   # Playwright — approve flow, escalation, reject, offline sync, RBAC, auth gate, blockers & handoffs (10)
 ```
 
 The AI-safety suite checks that adversarial free text in a referral or discharge
@@ -111,6 +115,28 @@ assignments, nudges, escalations and the reminder notifications that *would* be
 sent. The worklist groups tasks by team, filters by status / "overdue only", and
 has a dev "Advance clock 12h" control so SLA breaches and escalation can be shown
 live.
+
+### Blockers — naming an obstacle explicitly
+
+Not every reason work has stalled is one of the twelve detected failure
+patterns. **Blockers** are person-raised: from any coordination item or task,
+"Report a blocker" captures what's blocking progress, a category (awaiting
+another team, an external organisation, missing information, capacity, a
+patient/family factor, a system/access issue), and the named external party if
+there is one. `/blockers` lists every open one across the place; resolving
+records who closed it and how. A blocker tracks independently of whatever the
+automated detectors are doing to the pathway it sits against.
+
+### Handoffs — ownership requires confirmation
+
+Reassigning a task is one click, but a silent reassignment is exactly the kind
+of gap this platform exists to close. A **handoff** is a formal record of a
+change of ownership — previous owner, new owner, reason, who sent it, when —
+and it does **not** become the task's assignee until the new owner
+**acknowledges** it. Until then the task shows **Pending acknowledgement**; if
+nobody has confirmed within the configured window (defaults to the same
+window as the first escalation step), it shows **Owner unknown** — a
+coordination risk in its own right, visible on the worklist and the task page.
 
 ### Installable & offline-tolerant (PWA)
 
@@ -192,6 +218,7 @@ src/
   adapters/      read-only ingestion — FHIR R4 (live) · e-RS · Transfer-of-Care
                  normalise a source to SourceEvent[]; strict entity resolution
   engine/tasks   task engine — dispatch, escalation ladder, activity log (pure)
+  engine/blockers, engine/handoffs   person-reported obstacles; ownership handoff + acknowledgement (pure)
   lib/offline-*  offline write-queue (IndexedDB) + submitAction fetch-or-queue
   app/manifest   web app manifest · public/sw.js — read/shell caching (prod only)
   config/        PlaceConfig schema + validator, SLA/threshold/scoring overrides
@@ -246,7 +273,13 @@ Reads are place-scoped to the caller's `currentPlaceId()`. Writes marked
 | `GET` | `/api/tasks` | dispatched tasks (`?function=` `?status=` filters) |
 | `GET` | `/api/tasks/:id` | one task |
 | `POST` | `/api/tasks/:id/action` | `{ kind, value?, note? }` — assign / status / nudge / escalate / note |
+| `POST` | `/api/tasks/:id/handoff` | `{ toOwner, reason }` — create a handoff; does not change the assignee until acknowledged |
 | `POST` | `/api/tasks/advance` | dev helper — pull the task clock back `{ hours }` |
+| `GET` | `/api/blockers` | blockers in the caller's place |
+| `POST` | `/api/blockers` | `{ exceptionId? \| taskId?, title, category, description, externalDependency? }` — report one |
+| `GET` | `/api/blockers/:id` | one blocker |
+| `POST` | `/api/blockers/:id/resolve` | `{ note? }` — mark resolved |
+| `POST` | `/api/handoffs/:id/acknowledge` | the new owner confirms ownership; sets the task's assignee |
 | `GET` | `/api/ingest` | configured source-adapter status |
 | `POST` | `/api/ingest` | **oversight** — pull events from the configured adapter (FHIR / e-RS / ToC), then re-run detection |
 

@@ -105,6 +105,27 @@ then injects the resolving event and re-runs detection, closing the originating
 coordination failure. Task SLA and escalation timings live in
 `PlaceConfig.workflow`.
 
+## Blockers & Handoffs (the Ownership Engine)
+
+`src/engine/blockers.ts` and `src/engine/handoffs.ts` are pure, alongside the
+detectors and the task engine.
+
+- **Blocker** — created by a person against an exception or a task
+  (`reportBlocker` in `store/db.ts`), never inferred. It carries a category, a
+  free-text description, and optionally a named external organisation.
+  `resolveBlocker` closes it with a note. Independent of the twelve detectors:
+  a blocker can be open on an item the detectors have nothing to say about.
+- **Handoff** — `handOffTask` records `{fromOwner, toOwner, reason, by, at}`.
+  Critically, it does **not** set `Task.assignee` — `acknowledgeHandoffById`
+  does that, when the new owner confirms. `engine/handoffs.ts` `ownerStatus(
+  taskId, handoffs, now, confirmationWindowHours)` reads the most recent
+  handoff for a task and returns `confirmed` (none, or acknowledged),
+  `pending_ack` (open, inside the window), or `unknown` (open, past it) — the
+  "Owner Unknown" state, computed rather than stored, so it always reflects
+  the current clock. The confirmation window reuses
+  `PlaceConfig.workflow.escalateToLevel1AfterHours` rather than adding a new
+  knob. Surfaced via `OwnerStatusBadge` on the worklist and the task page.
+
 ## Place configuration
 
 `src/config/` holds a `PlaceConfig` — pathway SLA overrides

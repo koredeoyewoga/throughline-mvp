@@ -5,6 +5,7 @@ import { UserMenu } from "./UserMenu";
 const NAV = [
   { href: "/queue", label: "Attention queue" },
   { href: "/worklist", label: "Worklist" },
+  { href: "/blockers", label: "Blockers" },
   { href: "/kpis", label: "Impact" },
   { href: "/audit", label: "Audit" },
   { href: "/settings", label: "Settings" },

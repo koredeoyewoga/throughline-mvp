@@ -1,5 +1,5 @@
-import type { Severity, ExceptionStatus, TaskStatus } from "@/domain/types";
-import { statusLabel, escalationLabel } from "@/lib/format";
+import type { Severity, ExceptionStatus, TaskStatus, BlockerStatus, OwnerStatus } from "@/domain/types";
+import { statusLabel, escalationLabel, ownerStatusLabel } from "@/lib/format";
 
 const SEV: Record<Severity, string> = {
   high: "bg-amber text-white",
@@ -53,4 +53,26 @@ export function EscalationBadge({ level }: { level: 0 | 1 | 2 }) {
 
 export function OverdueBadge() {
   return <span className="pill bg-amber text-white">Overdue</span>;
+}
+
+const BLOCKER_STATUS: Record<BlockerStatus, string> = {
+  open: "bg-amber-soft text-amber",
+  awaiting_response: "bg-amber-soft text-amber",
+  resolved: "bg-mist text-slate-muted",
+};
+
+export function BlockerStatusBadge({ status }: { status: BlockerStatus }) {
+  return <span className={`pill ${BLOCKER_STATUS[status]}`}>{statusLabel(status)}</span>;
+}
+
+const OWNER_STATUS: Record<OwnerStatus, string> = {
+  confirmed: "bg-teal-soft text-teal",
+  pending_ack: "bg-amber-soft text-amber",
+  unknown: "bg-amber text-white",
+};
+
+/** Shown only when ownership needs attention — a confirmed owner is the unremarkable default. */
+export function OwnerStatusBadge({ status }: { status: OwnerStatus }) {
+  if (status === "confirmed") return null;
+  return <span className={`pill ${OWNER_STATUS[status]}`}>{ownerStatusLabel(status)}</span>;
 }

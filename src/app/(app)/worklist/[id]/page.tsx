@@ -2,10 +2,15 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTask, getState } from "@/store/db";
 import { TaskActions } from "@/components/TaskActions";
-import { SeverityBadge, TaskStatusBadge, EscalationBadge, OverdueBadge } from "@/components/Badge";
+import { HandoffPanel } from "@/components/HandoffPanel";
+import { BlockerList } from "@/components/BlockerList";
+import { ReportBlockerForm } from "@/components/ReportBlockerForm";
+import { SeverityBadge, TaskStatusBadge, EscalationBadge, OverdueBadge, OwnerStatusBadge } from "@/components/Badge";
 import { patternLabel, realSince, functionLabel, escalationLabel } from "@/lib/format";
 import { patientName } from "@/data/patients";
 import { currentPlaceId } from "@/lib/session";
+import { getConfig } from "@/config";
+import { ownerStatus } from "@/engine/handoffs";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +22,8 @@ const KIND_ICON: Record<string, string> = {
   escalate: "▲",
   note: "–",
   reminder: "✎",
+  handoff: "⇄",
+  handoff_ack: "✓",
 };
 
 export default async function TaskPage(props: { params: Promise<{ id: string }> }) {
@@ -27,6 +34,9 @@ export default async function TaskPage(props: { params: Promise<{ id: string }> 
   const exception = state.exceptions.find((e) => e.id === task.exceptionId);
   const now = Date.now();
   const overdue = task.status !== "done" && task.status !== "cancelled" && now > Date.parse(task.dueAt);
+  const taskHandoffs = (state.handoffs ?? []).filter((h) => h.taskId === task.id);
+  const owner = ownerStatus(task.id, state.handoffs ?? [], new Date(now).toISOString(), getConfig().workflow.escalateToLevel1AfterHours);
+  const blockers = (state.blockers ?? []).filter((b) => b.taskId === task.id);
 
   return (
     <div className="space-y-6">
@@ -40,6 +50,7 @@ export default async function TaskPage(props: { params: Promise<{ id: string }> 
           <TaskStatusBadge status={task.status} />
           <EscalationBadge level={task.escalationLevel} />
           {overdue && <OverdueBadge />}
+          <OwnerStatusBadge status={owner} />
           <span className="pill bg-white text-slate-muted ring-1 ring-inset ring-line">
             {functionLabel(task.owner.functionArea)}
           </span>
@@ -115,6 +126,23 @@ export default async function TaskPage(props: { params: Promise<{ id: string }> 
             <h2 className="text-sm font-bold text-ink">Work this task</h2>
             <div className="mt-3">
               <TaskActions taskId={task.id} status={task.status} assignee={task.assignee} />
+            </div>
+          </section>
+
+          <section className="card p-4">
+            <h2 className="text-sm font-bold text-ink">Ownership &amp; handoff</h2>
+            <div className="mt-3">
+              <HandoffPanel taskId={task.id} handoffs={taskHandoffs} />
+            </div>
+          </section>
+
+          <section className="card p-4">
+            <h2 className="text-sm font-bold text-ink">Blockers</h2>
+            <div className="mt-3">
+              <BlockerList blockers={blockers} />
+            </div>
+            <div className="mt-3">
+              <ReportBlockerForm taskId={task.id} />
             </div>
           </section>
         </div>

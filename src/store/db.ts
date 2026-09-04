@@ -19,6 +19,10 @@ import type {
   AuditEntry,
   SourceEvent,
   EventType,
+  Blocker,
+  BlockerCategory,
+  Handoff,
+  OwnerStatus,
 } from "@/domain/types";
 import type { Task } from "@/domain/types";
 import { buildSeed } from "@/data/seed";
@@ -35,6 +39,8 @@ import {
   taskSlaHours,
   type TaskActionKind,
 } from "@/engine/tasks";
+import { createBlocker, resolveBlocker } from "@/engine/blockers";
+import { createHandoff, acknowledgeHandoff, ownerStatus as computeOwnerStatus } from "@/engine/handoffs";
 import { dataDir } from "@/lib/dataDir";
 
 const DATA_DIR = dataDir();
@@ -60,6 +66,8 @@ async function freshState(): Promise<AppState> {
     ...seed,
     exceptions: [],
     tasks: [],
+    blockers: [],
+    handoffs: [],
     audit: [],
     lastRunAt: new Date().toISOString(),
   };
@@ -118,7 +126,11 @@ export async function getState(): Promise<AppState> {
   if (cache) return cache;
   if (fs.existsSync(FILE)) {
     try {
-      cache = JSON.parse(fs.readFileSync(FILE, "utf8")) as AppState;
+      const loaded = JSON.parse(fs.readFileSync(FILE, "utf8")) as AppState;
+      // Defensive against a state file persisted before blockers/handoffs existed.
+      loaded.blockers ??= [];
+      loaded.handoffs ??= [];
+      cache = loaded;
       return cache;
     } catch {
       // fall through to a fresh seed if the file is corrupt
@@ -250,6 +262,34 @@ export async function getTask(id: string, placeId?: string): Promise<Task | unde
 
 export async function listAudit(): Promise<AuditEntry[]> {
   return (await getState()).audit;
+}
+
+export async function listBlockers(placeId?: string): Promise<Blocker[]> {
+  return inPlace((await getState()).blockers ?? [], placeId);
+}
+
+export async function getBlocker(id: string, placeId?: string): Promise<Blocker | undefined> {
+  return visibleInPlace(
+    (await getState()).blockers?.find((b) => b.id === id),
+    placeId,
+  );
+}
+
+export async function listHandoffs(placeId?: string): Promise<Handoff[]> {
+  return inPlace((await getState()).handoffs ?? [], placeId);
+}
+
+export async function getHandoff(id: string, placeId?: string): Promise<Handoff | undefined> {
+  return visibleInPlace(
+    (await getState()).handoffs?.find((h) => h.id === id),
+    placeId,
+  );
+}
+
+/** Ownership confidence for a task, from its handoff history. */
+export async function taskOwnerStatus(taskId: string, now = new Date().toISOString()): Promise<OwnerStatus> {
+  const state = await getState();
+  return computeOwnerStatus(taskId, state.handoffs ?? [], now, getConfig().workflow.escalateToLevel1AfterHours);
 }
 
 // ---------------------------------------------------------------- writes
@@ -423,6 +463,168 @@ export async function actOnTask(
   persist(state);
   const updated = state.tasks.find((t) => t.id === taskId) ?? task;
   return { state, task: updated };
+}
+
+// ---------------------------------------------------------------- blockers
+
+export async function reportBlocker(input: {
+  actor: string;
+  placeId?: string;
+  exceptionId?: string;
+  taskId?: string;
+  title: string;
+  category: BlockerCategory;
+  description: string;
+  externalDependency?: string;
+}): Promise<{ state: AppState; blocker: Blocker } | null> {
+  const state = await getState();
+
+  let owner: Blocker["owner"];
+  let placeId: string;
+  if (input.taskId) {
+    const task = (state.tasks ?? []).find((t) => t.id === input.taskId);
+    if (!task || !writableInPlace(task, input.placeId)) return null;
+    owner = task.owner;
+    placeId = task.placeId;
+  } else if (input.exceptionId) {
+    const ex = state.exceptions.find((e) => e.id === input.exceptionId);
+    if (!ex || !writableInPlace(ex, input.placeId)) return null;
+    owner = ex.owner;
+    placeId = ex.placeId;
+  } else {
+    return null; // a blocker must be raised against an exception or a task
+  }
+
+  const now = new Date().toISOString();
+  const blocker = createBlocker({
+    id: `blk-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    now,
+    actor: input.actor,
+    placeId,
+    owner,
+    title: input.title,
+    category: input.category,
+    description: input.description,
+    exceptionId: input.exceptionId,
+    taskId: input.taskId,
+    externalDependency: input.externalDependency,
+  });
+  state.blockers = [...(state.blockers ?? []), blocker];
+
+  state.audit.unshift(
+    auditEntry(input.actor, `Blocker reported: "${blocker.title}"`, `blocker:${blocker.id}`, {
+      category: blocker.category,
+      exceptionId: blocker.exceptionId ?? null,
+      taskId: blocker.taskId ?? null,
+    }),
+  );
+  persist(state);
+  return { state, blocker };
+}
+
+export async function resolveBlockerById(
+  id: string,
+  input: { actor: string; note?: string; placeId?: string },
+): Promise<{ state: AppState; blocker: Blocker } | null> {
+  const state = await getState();
+  const idx = (state.blockers ?? []).findIndex((b) => b.id === id);
+  if (idx < 0 || !writableInPlace(state.blockers[idx], input.placeId)) return null;
+
+  const now = new Date().toISOString();
+  const blocker = resolveBlocker(state.blockers[idx], { actor: input.actor, now, note: input.note });
+  state.blockers = state.blockers.map((b, i) => (i === idx ? blocker : b));
+
+  state.audit.unshift(
+    auditEntry(input.actor, `Blocker resolved: "${blocker.title}"`, `blocker:${blocker.id}`, {
+      note: input.note ?? null,
+    }),
+  );
+  persist(state);
+  return { state, blocker };
+}
+
+// ---------------------------------------------------------------- handoffs
+
+export async function handOffTask(
+  taskId: string,
+  input: { actor: string; toOwner: string; reason: string; placeId?: string },
+): Promise<{ state: AppState; handoff: Handoff } | null> {
+  const state = await getState();
+  const idx = (state.tasks ?? []).findIndex((t) => t.id === taskId);
+  if (idx < 0 || !writableInPlace(state.tasks[idx], input.placeId)) return null;
+  const task = state.tasks[idx];
+
+  const now = new Date().toISOString();
+  const handoff = createHandoff(task, {
+    id: `hnd-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+    now,
+    actor: input.actor,
+    toOwner: input.toOwner,
+    reason: input.reason,
+  });
+  state.handoffs = [...(state.handoffs ?? []), handoff];
+
+  const activity = [
+    ...task.activity,
+    {
+      id: `act-${now}-handoff-${Math.random().toString(36).slice(2, 6)}`,
+      at: now,
+      actor: input.actor,
+      kind: "handoff" as const,
+      detail: `Handed off to ${handoff.toOwner} — pending acknowledgement (${handoff.reason})`,
+    },
+  ];
+  state.tasks = state.tasks.map((t, i) => (i === idx ? { ...t, activity } : t));
+
+  state.audit.unshift(
+    auditEntry(input.actor, `Handoff created for "${task.title}"`, `handoff:${handoff.id}`, {
+      taskId: task.id,
+      fromOwner: handoff.fromOwner,
+      toOwner: handoff.toOwner,
+      reason: handoff.reason,
+    }),
+  );
+  persist(state);
+  return { state, handoff };
+}
+
+export async function acknowledgeHandoffById(
+  id: string,
+  input: { actor: string; placeId?: string },
+): Promise<{ state: AppState; handoff: Handoff } | null> {
+  const state = await getState();
+  const idx = (state.handoffs ?? []).findIndex((h) => h.id === id);
+  if (idx < 0 || !writableInPlace(state.handoffs[idx], input.placeId)) return null;
+  if (state.handoffs[idx].acknowledgedAt) return { state, handoff: state.handoffs[idx] }; // idempotent
+
+  const now = new Date().toISOString();
+  const handoff = acknowledgeHandoff(state.handoffs[idx], input.actor, now);
+  state.handoffs = state.handoffs.map((h, i) => (i === idx ? handoff : h));
+
+  const taskIdx = (state.tasks ?? []).findIndex((t) => t.id === handoff.taskId);
+  if (taskIdx >= 0) {
+    const task = state.tasks[taskIdx];
+    const activity = [
+      ...task.activity,
+      {
+        id: `act-${now}-handoff_ack-${Math.random().toString(36).slice(2, 6)}`,
+        at: now,
+        actor: input.actor,
+        kind: "handoff_ack" as const,
+        detail: `${input.actor} acknowledged ownership (handed off by ${handoff.by})`,
+      },
+    ];
+    state.tasks = state.tasks.map((t, i) => (i === taskIdx ? { ...t, assignee: handoff.toOwner, activity } : t));
+  }
+
+  state.audit.unshift(
+    auditEntry(input.actor, "Handoff acknowledged", `handoff:${handoff.id}`, {
+      taskId: handoff.taskId,
+      toOwner: handoff.toOwner,
+    }),
+  );
+  persist(state);
+  return { state, handoff };
 }
 
 function applyResolvingEvent(state: AppState, exception: Exception, amendedAction?: string): void {

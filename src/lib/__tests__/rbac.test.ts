@@ -3,7 +3,14 @@ import { can, denyReason, ROLE_PERMISSIONS, type Permission } from "@/lib/rbac";
 
 describe("permission matrix", () => {
   it("a coordinator can run the day-to-day workflow", () => {
-    for (const p of ["exception:decide", "task:act", "detection:refresh", "demo:reset"] as Permission[]) {
+    for (const p of [
+      "exception:decide",
+      "task:act",
+      "blocker:manage",
+      "handoff:manage",
+      "detection:refresh",
+      "demo:reset",
+    ] as Permission[]) {
       expect(can("coordinator", p)).toBe(true);
     }
   });

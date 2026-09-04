@@ -1,10 +1,10 @@
 import Link from "next/link";
-import type { Task } from "@/domain/types";
-import { SeverityBadge, TaskStatusBadge, EscalationBadge, OverdueBadge } from "./Badge";
+import type { Task, OwnerStatus } from "@/domain/types";
+import { SeverityBadge, TaskStatusBadge, EscalationBadge, OverdueBadge, OwnerStatusBadge } from "./Badge";
 import { patternLabel, realSince } from "@/lib/format";
 import { patientName } from "@/data/patients";
 
-export function TaskCard({ task, now }: { task: Task; now: number }) {
+export function TaskCard({ task, now, ownerStatus }: { task: Task; now: number; ownerStatus?: OwnerStatus }) {
   const overdue = task.status !== "done" && task.status !== "cancelled" && now > Date.parse(task.dueAt);
   const dueDelta = Date.parse(task.dueAt) - now;
   const dueLabel =
@@ -22,6 +22,7 @@ export function TaskCard({ task, now }: { task: Task; now: number }) {
           <TaskStatusBadge status={task.status} />
           <EscalationBadge level={task.escalationLevel} />
           {overdue && <OverdueBadge />}
+          {ownerStatus && <OwnerStatusBadge status={ownerStatus} />}
         </div>
         <span className="text-xs font-medium text-slate-muted">{dueLabel}</span>
       </div>
