@@ -5,6 +5,7 @@ import { PATHWAYS } from "@/domain/pathways";
 import { ConfigForm } from "@/components/ConfigForm";
 import { IngestButton } from "@/components/IngestButton";
 import { currentRole } from "@/lib/session";
+import { can } from "@/lib/rbac";
 import { getState } from "@/store/db";
 import { describeSource } from "@/adapters";
 
@@ -12,6 +13,8 @@ export const dynamic = "force-dynamic";
 
 export default async function SettingsPage() {
   const role = await currentRole();
+  const canEdit = can(role, "config:edit");
+  const canIngest = can(role, "source:ingest");
   const { config } = getConfigWithErrors();
   const rows = slaRows(PATHWAYS, config);
   const state = await getState();
@@ -24,15 +27,21 @@ export default async function SettingsPage() {
         <p className="mt-1 text-sm text-slate">
           The operating knobs a place or ICB tunes to match its own procedures — pathway SLAs, when each failure
           pattern flags, how items are prioritised, and the KPI assumptions. Saving re-runs detection immediately.
-          {role !== "oversight" && (
-            <> This screen is intended for a place oversight role; you are viewing as a coordinator.</>
-          )}
         </p>
         <p className="mt-1 text-xs text-slate-muted">
           In this MVP the config is stored in <code>.data/config.json</code> and applies to everyone. In production it
           would be per place with an approval trail.
         </p>
       </div>
+
+      {!canEdit && (
+        <div className="rounded-lg border border-amber-soft bg-amber-soft/50 p-3 text-sm text-ink">
+          You are viewing as a <strong>care coordinator</strong>. Configuration and source ingestion are read-only —
+          the <code>config:edit</code>, <code>config:reset</code> and <code>source:ingest</code> permissions belong to
+          the <strong>place oversight</strong> role. Switch role (top right) to make changes. The API enforces this
+          too — a save or pull as a coordinator returns <code>403</code>.
+        </div>
+      )}
 
       <section className="card p-4">
         <h2 className="text-sm font-bold text-ink">Data source</h2>
@@ -54,11 +63,13 @@ export default async function SettingsPage() {
           <dd className="text-ink">{state.lastIngestAt ? new Date(state.lastIngestAt).toLocaleString() : "—"}</dd>
         </dl>
         <div className="mt-3">
-          <IngestButton disabled={source.name === "synthetic"} />
+          <IngestButton disabled={source.name === "synthetic" || !canIngest} />
         </div>
       </section>
 
-      <ConfigForm config={config} defaults={DEFAULT_CONFIG} slaRows={rows} />
+      <fieldset disabled={!canEdit} className={canEdit ? undefined : "opacity-60"}>
+        <ConfigForm config={config} defaults={DEFAULT_CONFIG} slaRows={rows} />
+      </fieldset>
     </div>
   );
 }

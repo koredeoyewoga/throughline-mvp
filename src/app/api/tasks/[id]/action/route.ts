@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { actOnTask } from "@/store/db";
-import { currentRole, actorLabel } from "@/lib/session";
+import { currentPlaceId, actorLabel } from "@/lib/session";
+import { authorize } from "@/lib/apiAuth";
 import type { TaskActionKind } from "@/engine/tasks";
 import type { TaskStatus } from "@/domain/types";
 
@@ -25,12 +26,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: `status must be one of ${STATUSES.join(", ")}` }, { status: 400 });
   }
 
-  const role = await currentRole();
+  const auth = await authorize("task:act");
+  if ("response" in auth) return auth.response;
+
   const result = await actOnTask(id, {
     kind: body.kind as TaskActionKind,
-    actor: actorLabel(role),
+    actor: actorLabel(auth.role),
     value: typeof body.value === "string" ? body.value.slice(0, 200) : undefined,
     note: typeof body.note === "string" ? body.note.slice(0, 500) : undefined,
+    placeId: await currentPlaceId(),
   });
   if (!result) return NextResponse.json({ error: "task not found" }, { status: 404 });
   return NextResponse.json({ ok: true, task: result.task });

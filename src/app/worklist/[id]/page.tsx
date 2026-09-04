@@ -5,6 +5,7 @@ import { TaskActions } from "@/components/TaskActions";
 import { SeverityBadge, TaskStatusBadge, EscalationBadge, OverdueBadge } from "@/components/Badge";
 import { patternLabel, realSince, functionLabel, escalationLabel } from "@/lib/format";
 import { patientName } from "@/data/patients";
+import { currentPlaceId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ const KIND_ICON: Record<string, string> = {
 
 export default async function TaskPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const [task, state] = await Promise.all([getTask(id), getState()]);
+  const [task, state] = await Promise.all([getTask(id, await currentPlaceId()), getState()]);
   if (!task) notFound();
 
   const exception = state.exceptions.find((e) => e.id === task.exceptionId);

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { recordDecision } from "@/store/db";
-import { currentRole, actorLabel } from "@/lib/session";
+import { currentPlaceId, actorLabel } from "@/lib/session";
+import { authorize } from "@/lib/apiAuth";
 import type { DecisionKind } from "@/domain/types";
 
 export const runtime = "nodejs";
@@ -21,12 +22,15 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: `kind must be one of ${VALID.join(", ")}` }, { status: 400 });
   }
 
-  const role = await currentRole();
+  const auth = await authorize("exception:decide");
+  if ("response" in auth) return auth.response;
+
   const result = await recordDecision(id, {
     kind: body.kind as DecisionKind,
-    actor: actorLabel(role),
+    actor: actorLabel(auth.role),
     note: typeof body.note === "string" ? body.note.slice(0, 500) : undefined,
     amendedAction: typeof body.amendedAction === "string" ? body.amendedAction.slice(0, 1000) : undefined,
+    placeId: await currentPlaceId(),
   });
 
   if (!result) return NextResponse.json({ error: "exception not found" }, { status: 404 });

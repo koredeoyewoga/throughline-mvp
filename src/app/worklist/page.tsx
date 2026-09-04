@@ -4,6 +4,7 @@ import { TaskCard } from "@/components/TaskCard";
 import { WorklistControls } from "@/components/WorklistControls";
 import { RefreshButton } from "@/components/RefreshButton";
 import { functionLabel } from "@/lib/format";
+import { currentPlaceId } from "@/lib/session";
 import type { Task } from "@/domain/types";
 
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ export default async function WorklistPage(props: {
   searchParams: Promise<{ fn?: string; status?: string; overdue?: string }>;
 }) {
   const { fn = "all", status = "all", overdue } = await props.searchParams;
-  const all = await listTasks();
+  const all = await listTasks(await currentPlaceId());
   const now = Date.now();
 
   const live = all.filter((t) => t.status !== "done" && t.status !== "cancelled");

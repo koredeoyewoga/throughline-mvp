@@ -27,6 +27,7 @@ import { getConfig } from "@/config";
 import { getConfiguredAdapter } from "@/adapters";
 import { mergeEvents } from "@/adapters/merge";
 import type { IngestResult } from "@/adapters/types";
+import { inPlace, visibleInPlace, writableInPlace } from "@/lib/tenancy";
 import {
   createTaskFromException,
   sweepTasks,
@@ -214,21 +215,31 @@ export async function ingestFromSource(actor = "system"): Promise<IngestResult> 
 }
 
 // ---------------------------------------------------------------- reads
+//
+// Every read takes an optional `placeId` — the tenant the caller is scoped to
+// (`currentPlaceId()`). When given, entities outside that place are invisible,
+// so a cross-tenant id read returns "not found" rather than another place's row.
 
-export async function listExceptions(): Promise<Exception[]> {
-  return (await getState()).exceptions;
+export async function listExceptions(placeId?: string): Promise<Exception[]> {
+  return inPlace((await getState()).exceptions, placeId);
 }
 
-export async function getException(id: string): Promise<Exception | undefined> {
-  return (await getState()).exceptions.find((e) => e.id === id);
+export async function getException(id: string, placeId?: string): Promise<Exception | undefined> {
+  return visibleInPlace(
+    (await getState()).exceptions.find((e) => e.id === id),
+    placeId,
+  );
 }
 
-export async function listTasks(): Promise<Task[]> {
-  return (await getState()).tasks ?? [];
+export async function listTasks(placeId?: string): Promise<Task[]> {
+  return inPlace((await getState()).tasks ?? [], placeId);
 }
 
-export async function getTask(id: string): Promise<Task | undefined> {
-  return (await getState()).tasks?.find((t) => t.id === id);
+export async function getTask(id: string, placeId?: string): Promise<Task | undefined> {
+  return visibleInPlace(
+    (await getState()).tasks?.find((t) => t.id === id),
+    placeId,
+  );
 }
 
 export async function listAudit(): Promise<AuditEntry[]> {
@@ -299,11 +310,12 @@ const RESOLVING_EVENT: Partial<
 
 export async function recordDecision(
   exceptionId: string,
-  input: { kind: DecisionKind; actor: string; note?: string; amendedAction?: string },
+  input: { kind: DecisionKind; actor: string; note?: string; amendedAction?: string; placeId?: string },
 ): Promise<{ state: AppState; exception: Exception } | null> {
   const state = await getState();
   const exception = state.exceptions.find((e) => e.id === exceptionId);
   if (!exception) return null;
+  if (!writableInPlace(exception, input.placeId)) return null; // cross-tenant guard
 
   const decision: Decision = {
     id: `dec-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
@@ -370,11 +382,12 @@ export async function recordDecision(
 
 export async function actOnTask(
   taskId: string,
-  input: { kind: TaskActionKind; actor: string; value?: string; note?: string },
+  input: { kind: TaskActionKind; actor: string; value?: string; note?: string; placeId?: string },
 ): Promise<{ state: AppState; task: Task } | null> {
   const state = await getState();
   const idx = (state.tasks ?? []).findIndex((t) => t.id === taskId);
   if (idx < 0) return null;
+  if (!writableInPlace(state.tasks[idx], input.placeId)) return null; // cross-tenant guard
 
   const now = new Date().toISOString();
   const { task, completed } = applyTaskAction(state.tasks[idx], { ...input, now });

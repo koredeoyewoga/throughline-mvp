@@ -7,6 +7,7 @@ import { RefreshButton } from "@/components/RefreshButton";
 import { ResetButton } from "@/components/ResetButton";
 import { patternLabel, FAILURE_PATTERNS } from "@/lib/format";
 import { getConfig } from "@/config";
+import { currentPlaceId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function QueuePage(props: {
   searchParams: Promise<{ sev?: string; show?: string }>;
 }) {
   const { sev = "all", show = "open" } = await props.searchParams;
-  const [all, state] = await Promise.all([listExceptions(), getState()]);
+  const [all, state] = await Promise.all([listExceptions(await currentPlaceId()), getState()]);
   const kpis = computeKpis(state, getConfig().kpi);
 
   const live = all.filter((e) => e.status !== "closed");

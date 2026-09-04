@@ -1,7 +1,7 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 
 async function resetToSeed(request: APIRequestContext) {
-  await request.delete("/api/config");
+  await request.delete("/api/config", { headers: { Cookie: "throughline_role=oversight" } });
   await request.post("/api/reset");
 }
 

@@ -7,12 +7,13 @@ import { EvidenceList } from "@/components/EvidenceList";
 import { DecisionPanel } from "@/components/DecisionPanel";
 import { SeverityBadge, StatusBadge, ConfidenceBadge } from "@/components/Badge";
 import { patternLabel, realSince, sinceNow, escalationLabel } from "@/lib/format";
+import { currentPlaceId } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export default async function ExceptionPage(props: { params: Promise<{ id: string }> }) {
   const { id } = await props.params;
-  const [exception, state] = await Promise.all([getException(id), getState()]);
+  const [exception, state] = await Promise.all([getException(id, await currentPlaceId()), getState()]);
   if (!exception) notFound();
 
   const patient = state.patients.find((p) => p.id === exception.patientId)!;

@@ -6,15 +6,16 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./e2e",
+  globalSetup: "./e2e/global-setup.ts",
   fullyParallel: false,
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: [["list"]],
   // Generous because e2e runs against the Next dev server, which compiles each
-  // route on first hit.
-  timeout: 60_000,
-  expect: { timeout: 10_000 },
+  // route on first hit — a long click-chain hits several cold routes in a row.
+  timeout: 120_000,
+  expect: { timeout: 20_000 },
   use: {
     baseURL: "http://localhost:3000",
     trace: "on-first-retry",
