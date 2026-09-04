@@ -2,27 +2,27 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
 
-// Canonicalise to the true on-disk casing so webpack does not see the same
-// module under two differently-cased paths (this project lives under a
-// directory whose stored name casing differs from how the shell addresses it).
-const raw = dirname(fileURLToPath(import.meta.url));
-let projectRoot = raw;
-try {
-  projectRoot = fs.realpathSync.native(raw);
-} catch {
-  /* keep raw */
-}
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  // The project sits under a user home directory that contains an unrelated
-  // package.json / lockfile. Pin the workspace root to this project so Next
-  // resolves the local node_modules (and bundled tooling), not the home dir.
-  turbopack: {
-    root: projectRoot,
-  },
-  outputFileTracingRoot: projectRoot,
 };
+
+// Windows-only: this project lives under a home directory whose stored casing
+// differs from how the shell addresses it, and which contains an unrelated
+// package.json. Canonicalise the path and pin the workspace root so webpack
+// does not see one module under two casings and Next resolves the local
+// node_modules. None of this is needed on a Linux CI / host, where applying it
+// has caused `next build` to misbehave.
+if (process.platform === "win32") {
+  const raw = dirname(fileURLToPath(import.meta.url));
+  let projectRoot = raw;
+  try {
+    projectRoot = fs.realpathSync.native(raw);
+  } catch {
+    /* keep raw */
+  }
+  nextConfig.turbopack = { root: projectRoot };
+  nextConfig.outputFileTracingRoot = projectRoot;
+}
 
 export default nextConfig;
