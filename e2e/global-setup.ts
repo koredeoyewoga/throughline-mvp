@@ -22,8 +22,28 @@ export default async function globalSetup() {
   for (const p of [...PAGES, ...APIS]) await warm(p);
   await warm(`/exceptions/${seedId}`);
 
-  // Compile the mutation routes too (a rejected body is fine — it still compiles).
+  // Compile the dynamic + mutation routes too (a rejected body still compiles).
+  await warm(`/api/exceptions/${seedId}`);
   await warm(`/api/exceptions/${seedId}/decision`, { method: "POST", body: "{}" });
   await warm(`/api/tasks/advance`, { method: "POST", body: "{}" });
+
+  // Force a real task to exist, then warm every route the approve→done chain hits.
+  await warm(`/api/reset`, { method: "POST" });
+  try {
+    await fetch(`${BASE}/api/exceptions/${seedId}/decision`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "approve", note: "warm-up" }),
+    });
+    const tasks = await (await fetch(`${BASE}/api/tasks`)).json();
+    const taskId = tasks.tasks?.[0]?.id;
+    if (taskId) {
+      await warm(`/worklist/${taskId}`);
+      await warm(`/api/tasks/${taskId}`);
+      await warm(`/api/tasks/${taskId}/action`, { method: "POST", body: "{}" });
+    }
+  } catch {
+    /* best effort */
+  }
   await warm(`/api/reset`, { method: "POST" });
 }
